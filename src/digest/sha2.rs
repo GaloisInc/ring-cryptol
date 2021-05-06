@@ -54,120 +54,6 @@ fn block_data_order<S: Sha2>(
 }
 
 #[inline]
-fn message_schedule<S: Sha2>(
-    M: &[S::InputBytes; 16],
-) -> [S; MAX_ROUNDS] {
-    let mut W = [S::ZERO; MAX_ROUNDS];
-    {
-        let W = &mut W[..S::K.len()];
-        for (W, M) in W.iter_mut().zip(M) {
-            *W = S::from_be_bytes(*M);
-        }
-        for t in M.len()..S::K.len() {
-            W[t] = sigma_1(W[t - 2]) + W[t - 7] + sigma_0(W[t - 15]) + W[t - 16]
-        }
-    }
-    W
-}
-
-#[inline]
-fn message_schedule_words<S: Sha2>(
-    M: &[S; 16],
-) -> [S; MAX_ROUNDS] {
-    let mut W = [S::ZERO; MAX_ROUNDS];
-    {
-        let W = &mut W[..S::K.len()];
-        for (W, M) in W.iter_mut().zip(M) {
-            *W = *M;
-        }
-        for t in M.len()..S::K.len() {
-            W[t] = message_schedule_one(
-                W[t - 2],
-                W[t - 7],
-                W[t - 15],
-                W[t - 16],
-            );
-        }
-    }
-    W
-}
-
-#[inline]
-fn message_schedule_one<S: Sha2>(
-    a: S,
-    b: S,
-    c: S,
-    d: S,
-) -> S {
-    sigma_1(a) + b + sigma_0(c) + d
-}
-
-
-#[inline]
-fn compress_t1<S: Sha2>(
-    e: S,
-    f: S,
-    g: S,
-    h: S,
-    k_t: S,
-    w_t: S,
-) -> S {
-    h + SIGMA_1(e) + ch(e, f, g) + k_t + w_t
-}
-
-#[inline]
-fn compress_t2<S: Sha2>(
-    a: S,
-    b: S,
-    c: S,
-) -> S {
-    SIGMA_0(a) + maj(a, b, c)
-}
-
-#[inline]
-fn compress_words<S: Sha2>(
-    mut H: [S; CHAINING_WORDS],
-    W: &[S],
-) -> [S; CHAINING_WORDS] {
-    // FIPS 180-4 {6.2.2, 6.4.2} Step 2
-    let mut a = H[0];
-    let mut b = H[1];
-    let mut c = H[2];
-    let mut d = H[3];
-    let mut e = H[4];
-    let mut f = H[5];
-    let mut g = H[6];
-    let mut h = H[7];
-
-    // FIPS 180-4 {6.2.2, 6.4.2} Step 3
-    assert_eq!(S::K.len(), W.len());
-    for (Kt, Wt) in S::K.iter().zip(W.iter()) {
-        let T1 = compress_t1(e, f, g, h, *Kt, *Wt);
-        let T2 = compress_t2(a, b, c);
-        h = g;
-        g = f;
-        f = e;
-        e = d + T1;
-        d = c;
-        c = b;
-        b = a;
-        a = T1 + T2;
-    }
-
-    // FIPS 180-4 {6.2.2, 6.4.2} Step 4
-    H[0] += a;
-    H[1] += b;
-    H[2] += c;
-    H[3] += d;
-    H[4] += e;
-    H[5] += f;
-    H[6] += g;
-    H[7] += h;
-
-    H
-}
-
-#[inline]
 fn block_data_order_slice<S: Sha2>(
     mut H: [S; CHAINING_WORDS],
     M: &[[S::InputBytes; 16]],
@@ -229,27 +115,10 @@ fn block_data_order_slice<S: Sha2>(
     H
 }
 
-#[inline]
-fn block_data_order_slice_split<S: Sha2>(
-    mut H: [S; CHAINING_WORDS],
-    M: &[[S::InputBytes; 16]],
-) -> [S; CHAINING_WORDS] {
-    for M in M {
-        // FIPS 180-4 {6.2.2, 6.4.2} Step 1
-        //
-        // TODO: Use `let W: [S::ZERO; S::ROUNDS]` instead of allocating
-        // `MAX_ROUNDS` items and then slicing to `K.len()`; depends on
-        // https://github.com/rust-lang/rust/issues/43408.
-        let W = message_schedule(M);
-        let W = &W[..S::K.len()];
 
-        H = compress_words(H, W);
-    }
+// For verification, we define a word-based version of `block_data_order_slice` and decompose it
+// into smaller functions we can override.
 
-    H
-}
-
-#[inline]
 fn block_data_order_slice_words<S: Sha2>(
     mut H: [S; CHAINING_WORDS],
     M: &[[S; 16]],
@@ -268,6 +137,98 @@ fn block_data_order_slice_words<S: Sha2>(
 
     H
 }
+
+fn message_schedule_words<S: Sha2>(
+    M: &[S; 16],
+) -> [S; MAX_ROUNDS] {
+    let mut W = [S::ZERO; MAX_ROUNDS];
+    {
+        let W = &mut W[..S::K.len()];
+        for (W, M) in W.iter_mut().zip(M) {
+            *W = *M;
+        }
+        for t in M.len()..S::K.len() {
+            W[t] = message_schedule_one(
+                W[t - 2],
+                W[t - 7],
+                W[t - 15],
+                W[t - 16],
+            );
+        }
+    }
+    W
+}
+
+fn message_schedule_one<S: Sha2>(
+    a: S,
+    b: S,
+    c: S,
+    d: S,
+) -> S {
+    sigma_1(a) + b + sigma_0(c) + d
+}
+
+fn compress_words<S: Sha2>(
+    mut H: [S; CHAINING_WORDS],
+    W: &[S],
+) -> [S; CHAINING_WORDS] {
+    // FIPS 180-4 {6.2.2, 6.4.2} Step 2
+    let mut a = H[0];
+    let mut b = H[1];
+    let mut c = H[2];
+    let mut d = H[3];
+    let mut e = H[4];
+    let mut f = H[5];
+    let mut g = H[6];
+    let mut h = H[7];
+
+    // FIPS 180-4 {6.2.2, 6.4.2} Step 3
+    assert_eq!(S::K.len(), W.len());
+    for (Kt, Wt) in S::K.iter().zip(W.iter()) {
+        let T1 = compress_t1(e, f, g, h, *Kt, *Wt);
+        let T2 = compress_t2(a, b, c);
+        h = g;
+        g = f;
+        f = e;
+        e = d + T1;
+        d = c;
+        c = b;
+        b = a;
+        a = T1 + T2;
+    }
+
+    // FIPS 180-4 {6.2.2, 6.4.2} Step 4
+    H[0] += a;
+    H[1] += b;
+    H[2] += c;
+    H[3] += d;
+    H[4] += e;
+    H[5] += f;
+    H[6] += g;
+    H[7] += h;
+
+    H
+}
+
+fn compress_t1<S: Sha2>(
+    e: S,
+    f: S,
+    g: S,
+    h: S,
+    k_t: S,
+    w_t: S,
+) -> S {
+    h + SIGMA_1(e) + ch(e, f, g) + k_t + w_t
+}
+
+fn compress_t2<S: Sha2>(
+    a: S,
+    b: S,
+    c: S,
+) -> S {
+    SIGMA_0(a) + maj(a, b, c)
+}
+
 
 // FIPS 180-4 {4.1.1, 4.1.2, 4.1.3}
 #[inline(always)]
@@ -565,14 +526,6 @@ mod crux_test {
         cryptol! {
             path "Primitive::Keyless::Hash::SHA256";
 
-            pub fn sigma_0(x: u32) -> u32 = "sigma_0 : [32] -> [32]";
-            pub fn sigma_1(x: u32) -> u32 = "sigma_1 : [32] -> [32]";
-            pub fn SIGMA_0(x: u32) -> u32 = "SIGMA_0 : [32] -> [32]";
-            pub fn SIGMA_1(x: u32) -> u32 = "SIGMA_1 : [32] -> [32]";
-
-            pub fn ch(x: u32, y: u32, z: u32) -> u32 = "Ch";
-            pub fn maj(x: u32, y: u32, z: u32) -> u32 = "Maj";
-
             pub fn message_schedule(m: [u32; 16]) -> [u32; 64]
                 = "messageSchedule_Common";
             pub fn message_schedule_one(a: u32, b: u32, c: u32, d: u32) -> u32
@@ -590,198 +543,39 @@ mod crux_test {
         }
     }
 
-    fn state_to_bytes(x: [u32; 16]) -> [u8; 64] {
-        let mut out = [0; 64];
-        for i in 0 .. 16 {
-            out[i * 4 .. (i + 1) * 4].copy_from_slice(&x[i].to_le_bytes());
+
+    fn wrap_slice<T: Copy>(src: &[T], dest: &mut [Wrapping<T>]) {
+        assert!(src.len() == dest.len());
+        for (x, y) in src.iter().zip(dest.iter_mut()) {
+            y.0 = *x;
         }
-        out
     }
 
-    fn state_from_bytes(x: [u8; 64]) -> [u32; 16] {
-        let mut out = [0; 16];
-        for i in 0 .. 16 {
-            let mut buf = [0; 4];
-            buf.copy_from_slice(&x[i * 4 .. (i + 1) * 4]);
-            out[i] = u32::from_le_bytes(buf);
+    fn unwrap_slice<T: Copy>(src: &[Wrapping<T>], dest: &mut [T]) {
+        assert!(src.len() == dest.len());
+        for (x, y) in src.iter().zip(dest.iter_mut()) {
+            *y = x.0;
         }
-        out
     }
 
-    #[crux_test]
-    fn test_sigma_0() {
-        let input = u32::symbolic("input");
-        let output_real = sigma_0(Wrapping(input)).0;
-        let output_cryptol = cry::sigma_0(input);
-        crucible_assert!(output_real == output_cryptol);
+    fn words_to_bytes(src: &[u32], dest: &mut [[u8; 4]]) {
+        assert!(src.len() == dest.len());
+        for (x, y) in src.iter().zip(dest.iter_mut()) {
+            *y = x.to_be_bytes();
+        }
     }
 
-    #[crux_test]
-    fn test_sigma_1() {
-        let input = u32::symbolic("input");
-        let output_real = sigma_1(Wrapping(input)).0;
-        let output_cryptol = cry::sigma_1(input);
-        crucible_assert!(output_real == output_cryptol);
-    }
 
-    #[crux_test]
-    fn test_SIGMA_0() {
-        let input = u32::symbolic("input");
-        let output_real = SIGMA_0(Wrapping(input)).0;
-        let output_cryptol = cry::SIGMA_0(input);
-        crucible_assert!(output_real == output_cryptol);
-    }
+    fn cryptol_message_schedule_words(
+        M: &[Wrapping<u32>; 16],
+    ) -> [Wrapping<u32>; MAX_ROUNDS] {
+        let mut M_raw = [0; 16];
+        unwrap_slice(M, &mut M_raw);
+        let W_raw = cry::message_schedule(M_raw);
 
-    #[crux_test]
-    fn test_SIGMA_1() {
-        let input = u32::symbolic("input");
-        let output_real = SIGMA_1(Wrapping(input)).0;
-        let output_cryptol = cry::SIGMA_1(input);
-        crucible_assert!(output_real == output_cryptol);
-    }
-
-    #[crux_test]
-    fn test_ch() {
-        let [a, b, c] = <[u32; 3]>::symbolic("input");
-        let output_real = ch(Wrapping(a), Wrapping(b), Wrapping(c)).0;
-        let output_cryptol = cry::ch(a, b, c);
-        crucible_assert!(output_real == output_cryptol);
-    }
-
-    #[crux_test]
-    fn test_maj() {
-        let [a, b, c] = <[u32; 3]>::symbolic("input");
-        let output_real = maj(Wrapping(a), Wrapping(b), Wrapping(c)).0;
-        let output_cryptol = cry::maj(a, b, c);
-        crucible_assert!(output_real == output_cryptol);
-    }
-
-    fn spec_sigma_0() -> MethodSpec {
-        let input = u32::symbolic("input");
-
-        let mut msb = MethodSpecBuilder::new(sigma_0::<Wrapping<u32>>);
-        msb.add_arg(&Wrapping(input));
-        msb.gather_assumes();
-
-        let output_real = u32::symbolic("result");
-        let output_cryptol = cry::sigma_0(input);
-        crucible_assert!(output_real == output_cryptol);
-
-        msb.set_return(&Wrapping(output_real));
-        msb.gather_asserts();
-        msb.finish()
-    }
-
-    fn spec_sigma_1() -> MethodSpec {
-        let input = u32::symbolic("input");
-
-        let mut msb = MethodSpecBuilder::new(sigma_1::<Wrapping<u32>>);
-        msb.add_arg(&Wrapping(input));
-        msb.gather_assumes();
-
-        let output_real = u32::symbolic("result");
-        let output_cryptol = cry::sigma_1(input);
-        crucible_assert!(output_real == output_cryptol);
-
-        msb.set_return(&Wrapping(output_real));
-        msb.gather_asserts();
-        msb.finish()
-    }
-
-    fn spec_SIGMA_0() -> MethodSpec {
-        let input = u32::symbolic("input");
-
-        let mut msb = MethodSpecBuilder::new(SIGMA_0::<Wrapping<u32>>);
-        msb.add_arg(&Wrapping(input));
-        msb.gather_assumes();
-
-        let output_real = u32::symbolic("result");
-        let output_cryptol = cry::SIGMA_0(input);
-        crucible_assert!(output_real == output_cryptol);
-
-        msb.set_return(&Wrapping(output_real));
-        msb.gather_asserts();
-        msb.finish()
-    }
-
-    fn spec_SIGMA_1() -> MethodSpec {
-        let input = u32::symbolic("input");
-
-        let mut msb = MethodSpecBuilder::new(SIGMA_1::<Wrapping<u32>>);
-        msb.add_arg(&Wrapping(input));
-        msb.gather_assumes();
-
-        let output_real = u32::symbolic("result");
-        let output_cryptol = cry::SIGMA_1(input);
-        crucible_assert!(output_real == output_cryptol);
-
-        msb.set_return(&Wrapping(output_real));
-        msb.gather_asserts();
-        msb.finish()
-    }
-
-    fn spec_ch() -> MethodSpec {
-        let [a, b, c] = <[u32; 3]>::symbolic("input");
-
-        let mut msb = MethodSpecBuilder::new(ch::<Wrapping<u32>>);
-        msb.add_arg(&Wrapping(a));
-        msb.add_arg(&Wrapping(b));
-        msb.add_arg(&Wrapping(c));
-        msb.gather_assumes();
-
-        let output_real = u32::symbolic("result");
-        let output_cryptol = cry::ch(a, b, c);
-        crucible_assert!(output_real == output_cryptol);
-
-        msb.set_return(&Wrapping(output_real));
-        msb.gather_asserts();
-        msb.finish()
-    }
-
-    fn spec_maj() -> MethodSpec {
-        let [a, b, c] = <[u32; 3]>::symbolic("input");
-
-        let mut msb = MethodSpecBuilder::new(maj::<Wrapping<u32>>);
-        msb.add_arg(&Wrapping(a));
-        msb.add_arg(&Wrapping(b));
-        msb.add_arg(&Wrapping(c));
-        msb.gather_assumes();
-
-        let output_real = u32::symbolic("result");
-        let output_cryptol = cry::maj(a, b, c);
-        crucible_assert!(output_real == output_cryptol);
-
-        msb.set_return(&Wrapping(output_real));
-        msb.gather_asserts();
-        msb.finish()
-    }
-
-    #[crux_test]
-    fn test_message_schedule_one() {
-        let [a, b, c, d] = <[u32; 4]>::symbolic("input");
-        let output_real = message_schedule_one(
-            Wrapping(a), Wrapping(b), Wrapping(c), Wrapping(d)).0;
-        let output_cryptol = cry::message_schedule_one(a, b, c, d);
-        crucible_assert!(output_real == output_cryptol);
-    }
-
-    fn spec_message_schedule_one() -> MethodSpec {
-        let [a, b, c, d] = <[u32; 4]>::symbolic("input");
-
-        let mut msb = MethodSpecBuilder::new(message_schedule_one::<Wrapping<u32>>);
-        msb.add_arg(&Wrapping(a));
-        msb.add_arg(&Wrapping(b));
-        msb.add_arg(&Wrapping(c));
-        msb.add_arg(&Wrapping(d));
-        msb.gather_assumes();
-
-        let output_real = u32::symbolic("result");
-        let output_cryptol = cry::message_schedule_one(a, b, c, d);
-        crucible_assert!(output_real == output_cryptol);
-
-        msb.set_return(&Wrapping(output_real));
-        msb.gather_asserts();
-        msb.finish()
+        let mut W = [Wrapping(0); MAX_ROUNDS];
+        wrap_slice(&W_raw, &mut W[..64]);
+        W
     }
 
     fn cryptol_message_schedule_one(
@@ -793,47 +587,19 @@ mod crux_test {
         Wrapping(cry::message_schedule_one(a.0, b.0, c.0, d.0))
     }
 
-    #[crux_test]
-    fn test_message_schedule_words() {
-        override_(message_schedule_one::<Wrapping<u32>>, cryptol_message_schedule_one);
+    fn cryptol_compress_words(
+        H: [Wrapping<u32>; 8],
+        W: &[Wrapping<u32>],
+    ) -> [Wrapping<u32>; 8] {
+        let mut H_raw = [0; 8];
+        unwrap_slice(&H, &mut H_raw);
+        let mut W_raw = [0; 64];
+        unwrap_slice(&W, &mut W_raw);
+        let output_raw = cry::compress(H_raw, W_raw);
 
-        let block = <[u32; 16]>::symbolic("block");
-
-        let mut block_wrap = [Wrapping(0); 16];
-        for (x, y) in block.iter().zip(block_wrap.iter_mut()) {
-            y.0 = *x;
-        }
-        let output_real = message_schedule_words::<Wrapping<u32>>(&block_wrap);
-
-        let output_cryptol = cry::message_schedule(block);
-
-        for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
-            crucible_assert!(x.0 == *y);
-        }
-        for x in &output_real[64..] {
-            crucible_assert!(x.0 == 0);
-        }
-    }
-
-    #[crux_test]
-    fn test_message_schedule_equiv() {
-        let block = <[u32; 16]>::symbolic("block");
-
-        let mut block_wrap = [Wrapping(0); 16];
-        for (x, y) in block.iter().zip(block_wrap.iter_mut()) {
-            y.0 = *x;
-        }
-        let mut block_bytes = [[0; 4]; 16];
-        for (w, bs) in block.iter().zip(block_bytes.iter_mut()) {
-            *bs = w.to_be_bytes();
-        }
-
-        let output1 = message_schedule_words::<Wrapping<u32>>(&block_wrap);
-        let output2 = message_schedule::<Wrapping<u32>>(&block_bytes);
-
-        for (x, y) in output1.iter().zip(output2.iter()) {
-            crucible_assert!(*x == *y);
-        }
+        let mut output = [Wrapping(0); 8];
+        wrap_slice(&output_raw, &mut output);
+        output
     }
 
     fn cryptol_compress_t1(
@@ -855,12 +621,38 @@ mod crux_test {
         Wrapping(cry::compress_t2(a.0, b.0, c.0))
     }
 
+
     #[crux_test]
-    fn test_compress_t1() {
-        let mut input = [Wrapping(0); 6];
-        for x in input.iter_mut() {
-            x.0 = u32::symbolic("input");
+    fn message_schedule_one_equiv() {
+        let mut input = [Wrapping(0); 4];
+        wrap_slice(&<[u32; 4]>::symbolic("input"), &mut input);
+        let [a, b, c, d] = input;
+
+        let output_real = message_schedule_one(a, b, c, d);
+        let output_cryptol = cryptol_message_schedule_one(a, b, c, d);
+        crucible_assert!(output_real == output_cryptol);
+    }
+
+    #[crux_test]
+    fn message_schedule_words_equiv() {
+        override_(message_schedule_one::<Wrapping<u32>>, cryptol_message_schedule_one);
+
+        let block = <[u32; 16]>::symbolic("block");
+        let mut block_wrap = [Wrapping(0); 16];
+        wrap_slice(&block, &mut block_wrap);
+
+        let output_real = message_schedule_words::<Wrapping<u32>>(&block_wrap);
+        let output_cryptol = cryptol_message_schedule_words(&block_wrap);
+
+        for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
+            crucible_assert!(*x == *y);
         }
+    }
+
+    #[crux_test]
+    fn compress_t1_equiv() {
+        let mut input = [Wrapping(0); 6];
+        wrap_slice(&<[u32; 6]>::symbolic("input"), &mut input);
         let [e, f, g, h, k_t, w_t] = input;
 
         let output_real = compress_t1(e, f, g, h, k_t, w_t);
@@ -869,7 +661,7 @@ mod crux_test {
     }
 
     #[crux_test]
-    fn test_compress_t2() {
+    fn compress_t2_equiv() {
         let a = Wrapping(u32::symbolic("input"));
         let b = Wrapping(u32::symbolic("input"));
         let c = Wrapping(u32::symbolic("input"));
@@ -880,73 +672,61 @@ mod crux_test {
     }
 
     #[crux_test]
-    fn test_compress_words() {
+    fn compress_words_equiv() {
         override_(compress_t1::<Wrapping<u32>>, cryptol_compress_t1);
         override_(compress_t2::<Wrapping<u32>>, cryptol_compress_t2);
 
         let state = <[u32; 8]>::symbolic("block");
+        let mut state_wrap = [Wrapping(0); 8];
+        wrap_slice(&state, &mut state_wrap);
+
         let mut schedule = [0; 64];
         for x in schedule.iter_mut() {
             *x = u32::symbolic("schedule");
         }
-
-        let mut state_wrap = [Wrapping(0); 8];
-        for (x, y) in state.iter().zip(state_wrap.iter_mut()) {
-            y.0 = *x;
-        }
         let mut schedule_wrap = [Wrapping(0); 64];
-        for (x, y) in schedule.iter().zip(schedule_wrap.iter_mut()) {
-            y.0 = *x;
-        }
-        let output_real = compress_words::<Wrapping<u32>>(state_wrap, &schedule_wrap);
+        wrap_slice(&schedule, &mut schedule_wrap);
 
-        let output_cryptol = cry::compress(state, schedule);
+        let output_real = compress_words::<Wrapping<u32>>(state_wrap, &schedule_wrap);
+        let output_cryptol = cryptol_compress_words(state_wrap, &schedule_wrap);
+
+        for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
+            crucible_assert!(*x == *y);
+        }
+    }
+
+    #[crux_test]
+    fn block_data_order_slice_words_equiv() {
+        override_(message_schedule_words::<Wrapping<u32>>, cryptol_message_schedule_words);
+        override_(compress_words::<Wrapping<u32>>, cryptol_compress_words);
+
+        let state = <[u32; 8]>::symbolic("block");
+        let mut state_wrap = [Wrapping(0); 8];
+        wrap_slice(&state, &mut state_wrap);
+
+        let block = <[u32; 16]>::symbolic("block");
+        let mut block_wrap = [Wrapping(0); 16];
+        wrap_slice(&block, &mut block_wrap);
+
+        let output_real = block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]);
+        let output_cryptol = cry::process_block(state, block);
 
         for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
             crucible_assert!(x.0 == *y);
         }
     }
 
-    /*
     #[crux_test]
-    fn test_block_data_order_slice_eq() {
-        let state = <[u32; 8]>::symbolic("state");
-        let block = <[u32; 16]>::symbolic("block");
-
+    fn block_data_order_slice_equiv() {
+        let state = <[u32; 8]>::symbolic("block");
         let mut state_wrap = [Wrapping(0); 8];
-        for (x, y) in state.iter().zip(state_wrap.iter_mut()) {
-            *y = Wrapping(*x);
-        }
-        let mut block_bytes = [[0; 4]; 16];
-        for (w, bs) in block.iter().zip(block_bytes.iter_mut()) {
-            *bs = w.to_be_bytes();
-        }
-        let output0 = block_data_order_slice::<Wrapping<u32>>(state_wrap, &[block_bytes]);
-        let output1 = block_data_order_slice_split::<Wrapping<u32>>(state_wrap, &[block_bytes]);
+        wrap_slice(&state, &mut state_wrap);
 
-        for (x, y) in output0.iter().zip(output1.iter()) {
-            crucible_assert!(*x == *y);
-        }
-    }
-    */
-
-    #[crux_test]
-    fn test_block_data_order_slice_equiv2() {
-        let state = <[u32; 8]>::symbolic("state");
         let block = <[u32; 16]>::symbolic("block");
-
-        let mut state_wrap = [Wrapping(0); 8];
-        for (x, y) in state.iter().zip(state_wrap.iter_mut()) {
-            y.0 = *x;
-        }
         let mut block_wrap = [Wrapping(0); 16];
-        for (x, y) in block.iter().zip(block_wrap.iter_mut()) {
-            y.0 = *x;
-        }
+        wrap_slice(&block, &mut block_wrap);
         let mut block_bytes = [[0; 4]; 16];
-        for (w, bs) in block.iter().zip(block_bytes.iter_mut()) {
-            *bs = w.to_be_bytes();
-        }
+        words_to_bytes(&block, &mut block_bytes);
 
         let output1 = block_data_order_slice::<Wrapping<u32>>(state_wrap, &[block_bytes]);
         let output2 = block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]);
@@ -955,133 +735,4 @@ mod crux_test {
             crucible_assert!(*x == *y);
         }
     }
-
-    fn cryptol_message_schedule_words(
-        M: &[Wrapping<u32>; 16],
-    ) -> [Wrapping<u32>; MAX_ROUNDS] {
-        let mut input = [0; 16];
-        for (x, y) in M.iter().zip(input.iter_mut()) {
-            *y = x.0;
-        }
-        let output = cry::message_schedule(input);
-
-        let mut W = [Wrapping(0); MAX_ROUNDS];
-        for (x, y) in output.iter().zip(W.iter_mut()) {
-            y.0 = *x;
-        }
-        W
-    }
-
-    fn cryptol_compress_words(
-        H: [Wrapping<u32>; 8],
-        W: &[Wrapping<u32>],
-    ) -> [Wrapping<u32>; 8] {
-        let mut H_raw = [0; 8];
-        for (x, y) in H.iter().zip(H_raw.iter_mut()) {
-            *y = x.0;
-        }
-        let mut W_raw = [0; 64];
-        assert!(W.len() == 64);
-        for (x, y) in W.iter().zip(W_raw.iter_mut()) {
-            *y = x.0;
-        }
-        let output_raw = cry::compress(H_raw, W_raw);
-
-        let mut output = [Wrapping(0); 8];
-        for (x, y) in output_raw.iter().zip(output.iter_mut()) {
-            y.0 = *x;
-        }
-        output
-    }
-
-    #[crux_test]
-    fn test_block_data_order_slice_split() {
-        override_(message_schedule_words::<Wrapping<u32>>, cryptol_message_schedule_words);
-        override_(compress_words::<Wrapping<u32>>, cryptol_compress_words);
-
-        let state = <[u32; 8]>::symbolic("state");
-        let block = <[u32; 16]>::symbolic("block");
-
-        let mut state_wrap = [Wrapping(0); 8];
-        for (x, y) in state.iter().zip(state_wrap.iter_mut()) {
-            *y = Wrapping(*x);
-        }
-        let mut block_wrap = [Wrapping(0); 16];
-        for (x, y) in block.iter().zip(block_wrap.iter_mut()) {
-            *y = Wrapping(*x);
-        }
-        let output_real = block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]);
-
-        let output_cryptol = cry::process_block(state, block);
-
-        for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
-            crucible_assert!(x.0 == *y);
-        }
-    }
-
-    /*
-    #[crux_test]
-    fn test_block() {
-        spec_sigma_0().enable();
-        spec_sigma_1().enable();
-        spec_SIGMA_0().enable();
-        spec_SIGMA_1().enable();
-
-        spec_ch().enable();
-        spec_maj().enable();
-
-        /*
-        cryptol::override_(
-            sigma_0::<Wrapping<u32>>,
-            "Primitive::Keyless::Hash::SHA256",
-            "sigma_0 : [32] -> [32]",
-        );
-        cryptol::override_(
-            sigma_1::<Wrapping<u32>>,
-            "Primitive::Keyless::Hash::SHA256",
-            "sigma_1 : [32] -> [32]",
-        );
-        cryptol::override_(
-            SIGMA_0::<Wrapping<u32>>,
-            "Primitive::Keyless::Hash::SHA256",
-            "SIGMA_0 : [32] -> [32]",
-        );
-        cryptol::override_(
-            SIGMA_1::<Wrapping<u32>>,
-            "Primitive::Keyless::Hash::SHA256",
-            "SIGMA_1 : [32] -> [32]",
-        );
-
-        cryptol::override_(
-            ch::<Wrapping<u32>>,
-            "Primitive::Keyless::Hash::SHA256",
-            "Ch",
-        );
-        cryptol::override_(
-            maj::<Wrapping<u32>>,
-            "Primitive::Keyless::Hash::SHA256",
-            "Maj",
-        );
-        */
-
-        let state = <[u32; 8]>::symbolic("state");
-        let block = <[u32; 16]>::symbolic("block");
-
-        let mut state_wrap = [Wrapping(0); 8];
-        for (x, y) in state.iter().zip(state_wrap.iter_mut()) {
-            *y = Wrapping(*x);
-        }
-        let mut block_bytes = [[0; 4]; 16];
-        for (w, bs) in block.iter().zip(block_bytes.iter_mut()) {
-            *bs = w.to_be_bytes();
-        }
-        let output_real = block_data_order_slice::<Wrapping<u32>>(state_wrap, &[block_bytes]);
-
-        let output_cryptol = cry::process_block(state, block);
-
-        for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
-            crucible_assert!(x.0 == *y);
-        }
-    }
-    */
 }
