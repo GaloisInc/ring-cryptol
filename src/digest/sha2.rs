@@ -518,6 +518,7 @@ extern "C" {
 mod crux_test {
     extern crate crucible;
     use crucible::*;
+    use crucible::cryptol::munge;
     use crucible::method_spec::*;
     use super::*;
 
@@ -628,25 +629,71 @@ mod crux_test {
         wrap_slice(&<[u32; 4]>::symbolic("input"), &mut input);
         let [a, b, c, d] = input;
 
-        let output_real = message_schedule_one(a, b, c, d);
-        let output_cryptol = cryptol_message_schedule_one(a, b, c, d);
+        let output_real = munge(message_schedule_one(a, b, c, d));
+        let output_cryptol = munge(cryptol_message_schedule_one(a, b, c, d));
         crucible_assert!(output_real == output_cryptol);
+    }
+
+    fn message_schedule_one_spec() -> MethodSpec {
+        let mut input = [Wrapping(0); 4];
+        wrap_slice(&<[u32; 4]>::symbolic("input"), &mut input);
+        let [a, b, c, d] = input;
+
+        let mut msb = MethodSpecBuilder::new(message_schedule_one::<Wrapping<u32>>);
+        msb.add_arg(&a);
+        msb.add_arg(&b);
+        msb.add_arg(&c);
+        msb.add_arg(&d);
+        msb.gather_assumes();
+
+        let output_real: Wrapping<u32> = munge(Wrapping(Symbolic::symbolic("output")));
+        let output_cryptol = munge(cryptol_message_schedule_one(a, b, c, d));
+        crucible_assert!(output_real == output_cryptol);
+
+        msb.set_return(&output_real);
+        msb.gather_asserts();
+        msb.finish()
     }
 
     #[crux_test]
     fn message_schedule_words_equiv() {
-        override_(message_schedule_one::<Wrapping<u32>>, cryptol_message_schedule_one);
+        message_schedule_one_spec().enable();
 
         let block = <[u32; 16]>::symbolic("block");
         let mut block_wrap = [Wrapping(0); 16];
         wrap_slice(&block, &mut block_wrap);
 
-        let output_real = message_schedule_words::<Wrapping<u32>>(&block_wrap);
-        let output_cryptol = cryptol_message_schedule_words(&block_wrap);
+        let output_real = munge(message_schedule_words::<Wrapping<u32>>(&block_wrap));
+        let output_cryptol = munge(cryptol_message_schedule_words(&block_wrap));
 
         for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
             crucible_assert!(*x == *y);
         }
+    }
+
+    fn message_schedule_words_spec() -> MethodSpec {
+        let block = <[u32; 16]>::symbolic("block");
+        let mut block_wrap = [Wrapping(0); 16];
+        wrap_slice(&block, &mut block_wrap);
+
+        let mut msb = MethodSpecBuilder::new(message_schedule_words::<Wrapping<u32>>);
+        msb.add_arg(&&block_wrap);
+        msb.gather_assumes();
+
+        let mut output_real = [Wrapping(0); MAX_ROUNDS];
+        for x in output_real.iter_mut() {
+            x.0 = u32::symbolic("schedule");
+        }
+        let output_real = munge(output_real);
+        let output_cryptol = munge(cryptol_message_schedule_words(&block_wrap));
+
+        for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
+            crucible_assert!(*x == *y);
+        }
+
+        msb.set_return(&output_real);
+        msb.gather_asserts();
+        msb.finish()
     }
 
     #[crux_test]
@@ -655,9 +702,32 @@ mod crux_test {
         wrap_slice(&<[u32; 6]>::symbolic("input"), &mut input);
         let [e, f, g, h, k_t, w_t] = input;
 
-        let output_real = compress_t1(e, f, g, h, k_t, w_t);
-        let output_cryptol = cryptol_compress_t1(e, f, g, h, k_t, w_t);
+        let output_real = munge(compress_t1(e, f, g, h, k_t, w_t));
+        let output_cryptol = munge(cryptol_compress_t1(e, f, g, h, k_t, w_t));
         crucible_assert!(output_real == output_cryptol);
+    }
+
+    fn compress_t1_spec() -> MethodSpec {
+        let mut input = [Wrapping(0); 6];
+        wrap_slice(&<[u32; 6]>::symbolic("input"), &mut input);
+        let [e, f, g, h, k_t, w_t] = input;
+
+        let mut msb = MethodSpecBuilder::new(compress_t1::<Wrapping<u32>>);
+        msb.add_arg(&e);
+        msb.add_arg(&f);
+        msb.add_arg(&g);
+        msb.add_arg(&h);
+        msb.add_arg(&k_t);
+        msb.add_arg(&w_t);
+        msb.gather_assumes();
+
+        let output_real = munge(Wrapping(u32::symbolic("output")));
+        let output_cryptol = munge(cryptol_compress_t1(e, f, g, h, k_t, w_t));
+        crucible_assert!(output_real == output_cryptol);
+
+        msb.set_return(&output_real);
+        msb.gather_asserts();
+        msb.finish()
     }
 
     #[crux_test]
@@ -666,15 +736,35 @@ mod crux_test {
         let b = Wrapping(u32::symbolic("input"));
         let c = Wrapping(u32::symbolic("input"));
 
-        let output_real = compress_t2(a, b, c);
-        let output_cryptol = cryptol_compress_t2(a, b, c);
+        let output_real = munge(compress_t2(a, b, c));
+        let output_cryptol = munge(cryptol_compress_t2(a, b, c));
         crucible_assert!(output_real == output_cryptol);
+    }
+
+    fn compress_t2_spec() -> MethodSpec {
+        let a = Wrapping(u32::symbolic("input"));
+        let b = Wrapping(u32::symbolic("input"));
+        let c = Wrapping(u32::symbolic("input"));
+
+        let mut msb = MethodSpecBuilder::new(compress_t2::<Wrapping<u32>>);
+        msb.add_arg(&a);
+        msb.add_arg(&b);
+        msb.add_arg(&c);
+        msb.gather_assumes();
+
+        let output_real = munge(Wrapping(u32::symbolic("output")));
+        let output_cryptol = munge(cryptol_compress_t2(a, b, c));
+        crucible_assert!(output_real == output_cryptol);
+
+        msb.set_return(&output_real);
+        msb.gather_asserts();
+        msb.finish()
     }
 
     #[crux_test]
     fn compress_words_equiv() {
-        override_(compress_t1::<Wrapping<u32>>, cryptol_compress_t1);
-        override_(compress_t2::<Wrapping<u32>>, cryptol_compress_t2);
+        compress_t1_spec().enable();
+        compress_t2_spec().enable();
 
         let state = <[u32; 8]>::symbolic("block");
         let mut state_wrap = [Wrapping(0); 8];
@@ -687,18 +777,49 @@ mod crux_test {
         let mut schedule_wrap = [Wrapping(0); 64];
         wrap_slice(&schedule, &mut schedule_wrap);
 
-        let output_real = compress_words::<Wrapping<u32>>(state_wrap, &schedule_wrap);
-        let output_cryptol = cryptol_compress_words(state_wrap, &schedule_wrap);
+        let output_real = munge(compress_words::<Wrapping<u32>>(state_wrap, &schedule_wrap));
+        let output_cryptol = munge(cryptol_compress_words(state_wrap, &schedule_wrap));
 
         for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
             crucible_assert!(*x == *y);
         }
     }
 
+    fn compress_words_spec() -> MethodSpec {
+        let state = <[u32; 8]>::symbolic("block");
+        let mut state_wrap = [Wrapping(0); 8];
+        wrap_slice(&state, &mut state_wrap);
+
+        let mut schedule = [0; 64];
+        for x in schedule.iter_mut() {
+            *x = u32::symbolic("schedule");
+        }
+        let mut schedule_wrap = [Wrapping(0); 64];
+        wrap_slice(&schedule, &mut schedule_wrap);
+
+        let mut msb = MethodSpecBuilder::new(compress_words::<Wrapping<u32>>);
+        msb.add_arg(&state_wrap);
+        msb.add_arg(&(&schedule_wrap as &[_]));
+        msb.gather_assumes();
+
+        let mut output_real = [Wrapping(0); 8];
+        wrap_slice(&<[u32; 8]>::symbolic("input"), &mut output_real);
+        let output_real = munge(output_real);
+        let output_cryptol = munge(cryptol_compress_words(state_wrap, &schedule_wrap));
+
+        for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
+            crucible_assert!(*x == *y);
+        }
+
+        msb.set_return(&output_real);
+        msb.gather_asserts();
+        msb.finish()
+    }
+
     #[crux_test]
     fn block_data_order_slice_words_equiv() {
-        override_(message_schedule_words::<Wrapping<u32>>, cryptol_message_schedule_words);
-        override_(compress_words::<Wrapping<u32>>, cryptol_compress_words);
+        message_schedule_words_spec().enable();
+        compress_words_spec().enable();
 
         let state = <[u32; 8]>::symbolic("block");
         let mut state_wrap = [Wrapping(0); 8];
@@ -708,8 +829,8 @@ mod crux_test {
         let mut block_wrap = [Wrapping(0); 16];
         wrap_slice(&block, &mut block_wrap);
 
-        let output_real = block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]);
-        let output_cryptol = cry::process_block(state, block);
+        let output_real = munge(block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]));
+        let output_cryptol = munge(cry::process_block(state, block));
 
         for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
             crucible_assert!(x.0 == *y);
