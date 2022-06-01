@@ -109,3 +109,101 @@ fn step3(
 fn rotl(x: W32, n: u32) -> W32 {
     Wrapping(x.0.rotate_left(n))
 }
+
+fn myrotl(x: u32, n: u32) -> u32 {
+    x.rotate_left(n)
+}
+
+#[cfg(crux)]
+mod crux_test {
+    extern crate crucible;
+    extern crate crucible_spec_macro;
+    use crucible::*;
+    use crucible::cryptol::munge;
+    use crucible::method_spec::*;
+    use crucible_spec_macro::crux_spec_for;
+    use super::*;
+
+    mod cry {
+        use super::crucible::cryptol;
+        cryptol! {
+            path "Primitive::Keyless::Hash::SHA1";
+
+            pub fn process_block(h: [u32; 5], m: [u32; 16]) -> [u32; 8]
+                = "block";
+
+            pub fn rotl(a: u32, n: u32) -> u32
+                = r#" \a n -> (a <<< n)"#;
+
+            pub fn parity(a: u32, b: u32, c: u32) -> u32
+                = r#"\a b c -> (a ^ b ^ c)"#;
+        }
+    }
+
+    fn wrap_slice<T: Copy>(src: &[T], dest: &mut [Wrapping<T>]) {
+        assert!(src.len() == dest.len());
+        for (x, y) in src.iter().zip(dest.iter_mut()) {
+            y.0 = *x;
+        }
+    }
+
+    // fn cryptol_rotl(
+    //     a: W32,
+    //     n: W32
+    // ) -> W32 {
+    //     Wrapping(cry::rotl(a, n))
+    // }
+
+    fn cryptol_parity(
+        a: W32,
+        b: W32,
+        c: W32
+    ) -> W32 {
+        Wrapping(cry::parity(a.0, b.0, c.0))
+    }
+
+    #[crux_spec_for(parity)]
+    fn parity_equiv(){
+        let [a, b, c] = <[W32; 3]>::symbolic("input");
+        let output_real = munge(parity(a, b, c));
+        let output_cryptol = munge(cryptol_parity(a, b, c));
+        crucible_assert!(output_real == output_cryptol);
+    }
+
+    #[crux_test]
+    fn rotl_equiv(){
+        let a =<u32>::symbolic("a");
+        let n = <u32>::symbolic("n");
+        let output_real = munge(myrotl(a, n));
+        let output_cryptol = munge(cry::rotl(a, n));
+        crucible_assert!(output_real == output_cryptol);
+    }
+
+    #[crux_test]
+    fn block_data_order_equiv() {
+        parity_equiv_spec().enable();
+        //rotl_equiv_spec().enable();
+
+        let state = <[u32; 5]>::symbolic("block");
+        let mut state_wrap = [Wrapping(0); 5];
+        wrap_slice(&state, &mut state_wrap);
+
+        let mut block = <[u32; 16]>::symbolic("block");
+        let mut block_wrap = [Wrapping(0); 16];
+        wrap_slice(&block, &mut block_wrap);
+
+        let mut block_split_byte_array = [[0u8; 4]; 16];
+        let output_real = munge(block_data_order_(state_wrap, &[block_split_byte_array]));
+        let output_cryptol = munge(cry::process_block(state, block));
+
+        for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
+            crucible_assert!(x.0 == *y);
+        }
+    }
+
+
+
+
+
+
+}

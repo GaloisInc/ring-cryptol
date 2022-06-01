@@ -553,7 +553,6 @@ mod crux_test {
             y.0 = *x;
         }
     }
-
     fn unwrap_slice<T: Copy>(src: &[Wrapping<T>], dest: &mut [T]) {
         assert!(src.len() == dest.len());
         for (x, y) in src.iter().zip(dest.iter_mut()) {
