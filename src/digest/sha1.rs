@@ -230,7 +230,8 @@ pub mod cry{
             = "block";
 
         pub fn rotl(a: u32, n: u32) -> u32
-            = r#" \(a: [32]) (n: [32]) -> (a <<< n)"#;
+            = "rotl";
+            //r#" \(a: [32]) (n: [32]) -> (a <<< n)"#;
 
         pub fn parity(a: u32, b: u32, c: u32) -> u32
             = r#"\(a: [32]) (b: [32]) (c: [32]) -> (a ^ b ^ c)"#;
@@ -239,18 +240,19 @@ pub mod cry{
             = r#"\(x: [32]) (y: [32]) (z: [32]) -> (x && y) || (~x && z)"#;
 
         pub fn maj(x: u32, y: u32, z: u32) -> u32
-            = r#"\(x: [32]) (y: [32]) (z: [32]) -> (x && y) || (x && z) || (y && z)"#;
+            = "maj";
+            //r#"\(x: [32]) (y: [32]) (z: [32]) -> (x && y) || (x && z) || (y && z)"#;
 
-        pub fn step3_ch (arg : step3_type) -> (u32, u32, u32, u32, u32)
+        pub fn step3_ch (arg: step3_type) -> (u32, u32, u32, u32, u32)
             = "step3_ch";
 
-        pub fn step3_maj (arg : step3_type) -> (u32, u32, u32, u32, u32)
+        pub fn step3_maj (arg: step3_type) -> (u32, u32, u32, u32, u32)
             = "step3_maj";
 
-        pub fn step3_parity1 (arg : step3_type) -> (u32, u32, u32, u32, u32)
+        pub fn step3_parity1 (arg: step3_type) -> (u32, u32, u32, u32, u32)
             = "step3_parity1";
 
-        pub fn step3_parity2 (arg : step3_type) -> (u32, u32, u32, u32, u32)
+        pub fn step3_parity2 (arg: step3_type) -> (u32, u32, u32, u32, u32)
             = "step3_parity2";
     }
 
@@ -420,56 +422,55 @@ mod crux_test {
         crucible_assert!(output_real == output_cryptol);
     }
 
-    // counter example
-    // #[crux_spec_for(step3_ch)]
-    #[crux_test]
+    // proved
+    #[crux_spec_for(step3_ch)]
     fn step3_ch_equiv(){
         rotl_equiv_spec().enable();
         ch_equiv_spec().enable();
         let [a, b, c, d, e] = <[W32; 5]>::symbolic("input");
         let w = <[W32; 20]>::symbolic("ws");
-        let output_real = step3_ch(a, b, c, d, e, w);
-        let output_cryptol = cryptol_step3_ch(a, b, c, d, e, w);
+        let output_real = munge(step3_ch(a, b, c, d, e, w));
+        let output_cryptol = munge(cryptol_step3_ch(a, b, c, d, e, w));
+        // // crucible_assert!(x + y == z, "bad arithmetic: {} + {} != {}", x, y, z)
+        // crucible_assert!(false, "bad arithmetic: {} + {} != {}", 3, 4, 5);
+        // // crucible_assert!(false, "output_real = {:?}, output_cryptol ={:?}", output_real, output_cryptol);
         crucible_assert!(output_real == output_cryptol);
     }
 
-    // counter example
-    //#[crux_spec_for(step3_maj)]
-    #[crux_test]
+    // proved
+    #[crux_spec_for(step3_maj)]
     fn step3_maj_equiv(){
         rotl_equiv_spec().enable();
         maj_equiv_spec().enable();
         let [a, b, c, d, e] = <[W32; 5]>::symbolic("input");
         let w = <[W32; 20]>::symbolic("ws");
-        let output_real = step3_maj(a, b, c, d, e, w);
-        let output_cryptol = cryptol_step3_maj(a, b, c, d, e, w);
+        let output_real = munge(step3_maj(a, b, c, d, e, w));
+        let output_cryptol = munge(cryptol_step3_maj(a, b, c, d, e, w));
         crucible_assert!(output_real == output_cryptol);
     }
 
-    // counter example
-    // #[crux_spec_for(step3_parity1)]
-    #[crux_test]
+    // proved
+    #[crux_spec_for(step3_parity1)]
     fn step3_parity1_equiv(){
         rotl_equiv_spec().enable();
         parity_equiv_spec().enable();
         let [a, b, c, d, e] = <[W32; 5]>::symbolic("input");
         let mut w = <[u32; 20]>::symbolic("ws");
         let mut w_wrap = [Wrapping(0); 20];
-        let output_real = step3_parity1(a, b, c, d, e, w_wrap);
-        let output_cryptol = cryptol_step3_parity1(a, b, c, d, e, w_wrap);
+        let output_real = munge(step3_parity1(a, b, c, d, e, w_wrap));
+        let output_cryptol = munge(cryptol_step3_parity1(a, b, c, d, e, w_wrap));
         crucible_assert!(output_real == output_cryptol);
     }
 
-    // counter example
-    //#[crux_spec_for(step3_parity2)]
-    #[crux_test]
+    // proved
+    #[crux_spec_for(step3_parity2)]
     fn step3_parity2_equiv(){
         rotl_equiv_spec().enable();
         parity_equiv_spec().enable();
         let [a, b, c, d, e] = <[W32; 5]>::symbolic("input");
         let w = <[W32; 20]>::symbolic("ws");
-        let output_real = step3_parity2(a, b, c, d, e, w);
-        let output_cryptol = cryptol_step3_parity2(a, b, c, d, e, w);
+        let output_real = munge(step3_parity2(a, b, c, d, e, w));
+        let output_cryptol = munge(cryptol_step3_parity2(a, b, c, d, e, w));
         crucible_assert!(output_real == output_cryptol);
     }
 
@@ -480,10 +481,10 @@ mod crux_test {
         rotl_equiv_spec().enable();
         ch_equiv_spec().enable();
         maj_equiv_spec().enable();
-        override_(cryptol_step3_ch, step3_ch);
-        override_(cryptol_step3_maj, step3_maj);
-        override_(cryptol_step3_parity1, step3_parity1);
-        override_(cryptol_step3_parity2, step3_parity2);
+        step3_ch_equiv_spec().enable();
+        step3_maj_equiv_spec().enable();
+        step3_parity1_equiv_spec().enable();
+        step3_parity2_equiv_spec().enable();
 
         let state = <[u32; 5]>::symbolic("state");
         let mut state_wrap = [Wrapping(0); 5];
@@ -494,8 +495,8 @@ mod crux_test {
         wrap_slice(&block, &mut block_wrap);
 
         let mut block_split_byte_array = [[0u8; 4]; 16];
-        let output_real = munge(block_data_order_(state_wrap, &[block_split_byte_array]));
-        let output_cryptol = munge(cry::process_block((state, block)));
+        let output_real = block_data_order_(state_wrap, &[block_split_byte_array]);
+        let output_cryptol = cry::process_block((state, block));
 
         for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
             crucible_assert!(x.0 == *y);

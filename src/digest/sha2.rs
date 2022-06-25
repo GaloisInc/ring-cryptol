@@ -513,9 +513,9 @@ extern "C" {
     );
 }
 
-
+// rust crypto vs cryptol
 #[cfg(crux)]
-mod crux_test {
+mod rustcrypto_cryptol_test {
     extern crate crucible;
     extern crate crucible_spec_macro;
     use crucible::*;
@@ -547,13 +547,13 @@ mod crux_test {
     }
 
 
-    fn wrap_slice<T: Copy>(src: &[T], dest: &mut [Wrapping<T>]) {
+    pub fn wrap_slice<T: Copy>(src: &[T], dest: &mut [Wrapping<T>]) {
         assert!(src.len() == dest.len());
         for (x, y) in src.iter().zip(dest.iter_mut()) {
             y.0 = *x;
         }
     }
-    fn unwrap_slice<T: Copy>(src: &[Wrapping<T>], dest: &mut [T]) {
+    pub fn unwrap_slice<T: Copy>(src: &[Wrapping<T>], dest: &mut [T]) {
         assert!(src.len() == dest.len());
         for (x, y) in src.iter().zip(dest.iter_mut()) {
             *y = x.0;
@@ -732,3 +732,317 @@ mod crux_test {
         }
     }
 }
+
+// rust crypto vs hacspec
+#[cfg(crux)]
+mod rustcrypto_hs_test {
+    extern crate crucible;
+    extern crate crucible_spec_macro;
+    use crucible::*;
+    use crucible::cryptol::munge;
+    use crucible::method_spec::*;
+    use crucible_spec_macro::crux_spec_for;
+    use super::*;
+    use hacspec_sha256 as hs;
+    use hacspec_lib::prelude::*;
+
+    type W32 = Wrapping<u32>;
+
+    // use rustcrypto_cryptol_test::{ unwrap_slice
+    //     , wrap_slice };
+
+    // proved
+    #[crux_spec_for(ch)]
+    fn ch_equiv(){
+        let [a, b, c] = <[W32; 3]>::symbolic("input");
+        let output_real = munge(ch(a, b, c));
+        let output_hs = munge(hs::ch(U32::from(a.0), U32::from(b.0), U32::from(c.0)));
+        crucible_assert!(output_real.0 == u32::from(output_hs));
+    }
+
+    // proved
+    #[crux_spec_for(maj)]
+    fn maj_equiv(){
+        let [a, b, c] = <[W32; 3]>::symbolic("input");
+        let output_real = munge(maj(a, b, c));
+        let output_hs = munge(hs::maj(U32::from(a.0), U32::from(b.0), U32::from(c.0)));
+        crucible_assert!(output_real.0 == u32::from(output_hs));
+    }
+
+    // proved
+    // #[crux_spec_for(Word::rotr)]
+    #[crux_test]
+    fn rotr_equiv(){
+        let [mut a, n] = <[W32; 2]>::symbolic("inputs");
+        let mut b = U32::from(a.0);
+        crucible_assert!(a.rotr(n.0).0 == u32::from(b.rotate_right(n.0 as usize)));
+    }
+
+    // proved
+    // #[crux_spec_for(sigma_0)]
+    #[crux_test]
+    fn sigma_0_equiv(){
+        let [mut x, i] = <[W32; 2]>::symbolic("inputs");
+        let mut y = U32::from(x.0);
+        crucible_assert!(sigma_0(x).0 == u32::from(hs::sigma(y, i.0 as usize, 0)));
+    }
+
+    // proved
+    // #[crux_spec_for(sigma_1)]
+    #[crux_test]
+    fn sigma_1_equiv(){
+        let [mut x, i] = <[W32; 2]>::symbolic("inputs");
+        let mut y = U32::from(x.0);
+        crucible_assert!(sigma_1(x).0 == u32::from(hs::sigma(y, i.0 as usize, 1)));
+    }
+
+    fn hs_compress_t1(
+        e: Wrapping<u32>,
+        f: Wrapping<u32>,
+        g: Wrapping<u32>,
+        h: Wrapping<u32>,
+        k_t: Wrapping<u32>,
+        w_t: Wrapping<u32>,
+    ) -> Wrapping<u32> {
+        h + sigma_1(e) + ch(e, f, g) +  k_t + w_t
+    }
+
+    fn hs_compress_t2(
+        a: Wrapping<u32>,
+        b: Wrapping<u32>,
+        c: Wrapping<u32>,
+    ) -> Wrapping<u32> {
+        sigma_0(a) + maj(a, b, c)
+    }
+
+    // proved
+    #[crux_spec_for(compress_t1)]
+    fn compress_t1_equiv() {
+        // sigma0_equiv_spec().enable();
+        // sigma1_equiv_spec().enable();
+        let [e, f, g, h, k_t, w_t] = <[Wrapping<u32>; 6]>::symbolic("input");
+        let output_real = munge(compress_t1(e, f, g, h, k_t, w_t));
+        let output_hs = munge(hs_compress_t1(e, f, g, h, k_t, w_t));
+        crucible_assert!(output_real == output_hs);
+    }
+
+    // proved
+    #[crux_spec_for(compress_t2)]
+    // #[crux_test]
+    fn compress_t2_equiv() {
+        let [a, b, c] = <[Wrapping<u32>; 3]>::symbolic("input");
+        let output_real = munge(compress_t2(a, b, c));
+        let output_hs = munge(hs_compress_t2(a, b, c));
+        crucible_assert!(output_real == output_hs);
+    }
+
+    fn unwrap_slice(src: &[Wrapping<u32>], dest: &mut [U32]) {
+        assert!(src.len() == dest.len());
+        for (x, y) in src.iter().zip(dest.iter_mut()) {
+            *y = U32::from(x.0);
+        }
+    }
+    fn hs_compress_words(
+        H: [Wrapping<u32>; 8],
+        W: &[Wrapping<u32>],
+    ) -> [Wrapping<u32>; 8] {
+        let mut H_raw = [U32(0); 8];
+        unwrap_slice(&H, &mut H_raw);
+        let mut W_raw = [U32(0); 64];
+        unwrap_slice(&W, &mut W_raw);
+        for i in 0..64{
+            W_raw [i] = U32::from(W_raw[i]);
+        }
+        let output_raw = hs::shuffle(hs::RoundConstantsTable(W_raw), hs::Hash(H_raw));
+
+        let mut output = [Wrapping(0); 8];
+        wrap_slice(&(output_raw.0), &mut output);
+        output
+    }
+
+    pub fn wrap_slice(src: &[U32], dest: &mut [Wrapping<u32>]) {
+        assert!(src.len() == dest.len());
+        for (x, y) in src.iter().zip(dest.iter_mut()) {
+            y.0 = u32::from(*x);
+        }
+    }
+
+    // proved
+    #[crux_spec_for(compress_words)]
+    fn compress_words_equiv() {
+        compress_t1_equiv_spec().enable();
+        compress_t2_equiv_spec().enable();
+
+        let state = <[Wrapping<u32>; 8]>::symbolic("block");
+        let schedule = <[Wrapping<u32>; 64]>::symbolic("block");
+        // TODO: Remove the need for this explicit cast to `&[_]`.  Right now, removing the cast
+        // and relying on implicit coercion fails with an awful error message about `tyToShapeEq:
+        // type TyRef (TySlice ...) does not have representation ...` because the `crux_spec_for`
+        // proc macro doesn't know to insert the cast in the `msb.add_arg(&&schedule)` call, and as
+        // a result, the argument is recorded with the wrong type/repr.  I think we could work
+        // around this, or at least trigger a type error in rustc with a better error message, by
+        // using a wrapper function to constrain the types:
+        //
+        // ```Rust
+        // fn dispatch<A, B, C>(msb: &mut MethodSpecBuilder, f: fn(A, B) -> C, a: A, b: B) -> C {
+        //     msb.add_arg(&a);
+        //     msb.add_arg(&b);
+        //     // Other msb calls...
+        //     C::symbolic("result")
+        // }
+        let output_real = munge(compress_words(state, &schedule as &[_]));
+        let output_hs = munge(hs_compress_words(state, &schedule));
+
+        for (x, y) in output_real.iter().zip(output_hs.iter()) {
+            crucible_assert!(*x == *y);
+        }
+    }
+
+    fn hs_message_schedule_one(
+        a: Wrapping<u32>,
+        b: Wrapping<u32>,
+        c: Wrapping<u32>,
+        d: Wrapping<u32>,
+    ) -> Wrapping<u32> {
+        Wrapping(u32::from(hs::sigma(U32::from(a.0), 1, 1)) + b.0 + u32::from(hs::sigma(U32::from(c.0), 0, 1)) + d.0)
+    }
+
+    // proved
+    #[crux_spec_for(message_schedule_one)]
+    fn message_schedule_one_equiv() {
+        let [a, b, c, d] = <[Wrapping<u32>; 4]>::symbolic("input");
+        let output_real = munge(message_schedule_one(a, b, c, d));
+        let output_hs = munge(hs_message_schedule_one(a, b, c, d));
+        crucible_assert!(output_real == output_hs);
+    }
+
+
+    // fn unwrap_slice_U8(src: &[Wrapping<u32>], dest: &mut [U8]) {
+    //     assert!(src.len() == 4*dest.len());
+    //    for (x, y) in src.iter().zip(dest.iter()){
+    //        *y.extend(bytes_to_U8((*x).0));
+    //    }
+
+    // }
+
+    // fn bytes_to_U8(src: u32) -> [U8; 4] {
+    //    src.to_be_bytes().map(|x| U32::from(x)).collect()
+    // }
+
+    // fn hs_message_schedule_words(
+    //     M: &[Wrapping<u32>; 16],
+    // ) -> [Wrapping<u32>; MAX_ROUNDS] {
+    //     let mut M_raw = [U8(0); MAX_ROUNDS];
+    //     unwrap_slice_U8(M, &mut M_raw);
+    //     let W_raw = hs::schedule(hs::Block(M_raw));
+
+    //     let mut W = [Wrapping(0); MAX_ROUNDS];
+    //     wrap_slice(&(W_raw.0), &mut W[..64]);
+    //     W
+    // }
+
+
+
+    // //#[crux_spec_for(message_schedule_words)]
+    // #[crux_test]
+    // fn message_schedule_words_equiv() {
+    //     message_schedule_one_equiv_spec().enable();
+
+    //     let block = <[Wrapping<u32>; 16]>::symbolic("block");
+    //     let output_real = message_schedule_words(&block);
+    //     let output_hs = hs_message_schedule_words(&block);
+
+    //     for (x, y) in output_real.iter().zip(output_hs.iter()) {
+    //         crucible_assert!(*x == *y);
+    //     }
+    // }
+
+}
+
+//     #[crux_spec_for(compress_t1)]
+//     fn compress_t1_equiv() {
+//         let [e, f, g, h, k_t, w_t] = <[Wrapping<u32>; 6]>::symbolic("input");
+//         let output_real = munge(compress_t1(e, f, g, h, k_t, w_t));
+//         let output_cryptol = munge(cryptol_compress_t1(e, f, g, h, k_t, w_t));
+//         crucible_assert!(output_real == output_cryptol);
+//     }
+
+//     #[crux_spec_for(compress_t2)]
+//     fn compress_t2_equiv() {
+//         let [a, b, c] = <[Wrapping<u32>; 3]>::symbolic("input");
+//         let output_real = munge(compress_t2(a, b, c));
+//         let output_cryptol = munge(cryptol_compress_t2(a, b, c));
+//         crucible_assert!(output_real == output_cryptol);
+//     }
+
+//     #[crux_spec_for(compress_words)]
+//     fn compress_words_equiv() {
+//         compress_t1_equiv_spec().enable();
+//         compress_t2_equiv_spec().enable();
+
+//         let state = <[Wrapping<u32>; 8]>::symbolic("block");
+//         let schedule = <[Wrapping<u32>; 64]>::symbolic("block");
+//         // TODO: Remove the need for this explicit cast to `&[_]`.  Right now, removing the cast
+//         // and relying on implicit coercion fails with an awful error message about `tyToShapeEq:
+//         // type TyRef (TySlice ...) does not have representation ...` because the `crux_spec_for`
+//         // proc macro doesn't know to insert the cast in the `msb.add_arg(&&schedule)` call, and as
+//         // a result, the argument is recorded with the wrong type/repr.  I think we could work
+//         // around this, or at least trigger a type error in rustc with a better error message, by
+//         // using a wrapper function to constrain the types:
+//         //
+//         // ```Rust
+//         // fn dispatch<A, B, C>(msb: &mut MethodSpecBuilder, f: fn(A, B) -> C, a: A, b: B) -> C {
+//         //     msb.add_arg(&a);
+//         //     msb.add_arg(&b);
+//         //     // Other msb calls...
+//         //     C::symbolic("result")
+//         // }
+//         let output_real = munge(compress_words(state, &schedule as &[_]));
+//         let output_cryptol = munge(cryptol_compress_words(state, &schedule));
+
+//         for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
+//             crucible_assert!(*x == *y);
+//         }
+//     }
+
+//     #[crux_test]
+//     fn block_data_order_slice_words_equiv() {
+//         message_schedule_words_equiv_spec().enable();
+//         compress_words_equiv_spec().enable();
+
+//         let state = <[u32; 8]>::symbolic("block");
+//         let mut state_wrap = [Wrapping(0); 8];
+//         wrap_slice(&state, &mut state_wrap);
+
+//         let block = <[u32; 16]>::symbolic("block");
+//         let mut block_wrap = [Wrapping(0); 16];
+//         wrap_slice(&block, &mut block_wrap);
+
+//         let output_real = munge(block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]));
+//         let output_cryptol = munge(cry::process_block(state, block));
+
+//         for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
+//             crucible_assert!(x.0 == *y);
+//         }
+//     }
+
+//     #[crux_test]
+//     fn block_data_order_slice_equiv() {
+//         let state = <[u32; 8]>::symbolic("block");
+//         let mut state_wrap = [Wrapping(0); 8];
+//         wrap_slice(&state, &mut state_wrap);
+
+//         let block = <[u32; 16]>::symbolic("block");
+//         let mut block_wrap = [Wrapping(0); 16];
+//         wrap_slice(&block, &mut block_wrap);
+//         let mut block_bytes = [[0; 4]; 16];
+//         words_to_bytes(&block, &mut block_bytes);
+
+//         let output1 = block_data_order_slice::<Wrapping<u32>>(state_wrap, &[block_bytes]);
+//         let output2 = block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]);
+
+//         for (x, y) in output1.iter().zip(output2.iter()) {
+//             crucible_assert!(*x == *y);
+//         }
+//     }
+// }
