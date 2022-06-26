@@ -351,6 +351,7 @@ mod crux_test {
     let res = cry::step3_maj((a.0, b.0, c.0, d.0, e.0, ws));
     (Wrapping(res.0), Wrapping(res.1), Wrapping(res.2), Wrapping(res.3), Wrapping(res.4))
     }
+
     #[inline(always)]
     fn cryptol_step3_parity1(
     mut a: W32,

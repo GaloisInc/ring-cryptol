@@ -917,132 +917,83 @@ mod rustcrypto_hs_test {
     }
 
 
-    // fn unwrap_slice_U8(src: &[Wrapping<u32>], dest: &mut [U8]) {
-    //     assert!(src.len() == 4*dest.len());
-    //    for (x, y) in src.iter().zip(dest.iter()){
-    //        *y.extend(bytes_to_U8((*x).0));
-    //    }
-
+    // fn unwrap_slice_U8(src: &[Wrapping<u32>]) -> [u8] {
+    //     ((*src).0).to_be_bytes()
     // }
 
     // fn bytes_to_U8(src: u32) -> [U8; 4] {
     //    src.to_be_bytes().map(|x| U32::from(x)).collect()
     // }
 
-    // fn hs_message_schedule_words(
-    //     M: &[Wrapping<u32>; 16],
-    // ) -> [Wrapping<u32>; MAX_ROUNDS] {
-    //     let mut M_raw = [U8(0); MAX_ROUNDS];
-    //     unwrap_slice_U8(M, &mut M_raw);
-    //     let W_raw = hs::schedule(hs::Block(M_raw));
 
-    //     let mut W = [Wrapping(0); MAX_ROUNDS];
-    //     wrap_slice(&(W_raw.0), &mut W[..64]);
-    //     W
-    // }
+    fn hs_message_schedule_words(
+        M: &[Wrapping<u32>; 16],
+    ) -> [Wrapping<u32>; MAX_ROUNDS] {
+        let mut M_raw = [U8(0); 64];
+        let mut vec8: Vec<[u8; 4]> = M.iter().map(|&val| val.0.to_be_bytes()).collect();
+        let mut temp = vec8.concat();
+        for i in 16..80 {
+            M_raw[i] = U8(temp[i]);
+        }
+        let W_raw = hs::schedule(hs::Block(M_raw));
+        let mut W = [Wrapping(0); MAX_ROUNDS];
+        wrap_slice(&(W_raw.0), &mut W[..64]);
+        W
+    }
 
+    // proved
+    #[crux_spec_for(message_schedule_words)]
+    fn message_schedule_words_equiv() {
+        message_schedule_one_equiv_spec().enable();
 
+        let block = <[Wrapping<u32>; 16]>::symbolic("block");
+        let output_real = message_schedule_words(&block);
+        let output_hs = hs_message_schedule_words(&block);
 
-    // //#[crux_spec_for(message_schedule_words)]
-    // #[crux_test]
-    // fn message_schedule_words_equiv() {
-    //     message_schedule_one_equiv_spec().enable();
+        for (x, y) in output_real.iter().zip(output_hs.iter()) {
+            crucible_assert!(munge(*x) == munge(*y));
+        }
+    }
 
-    //     let block = <[Wrapping<u32>; 16]>::symbolic("block");
-    //     let output_real = message_schedule_words(&block);
-    //     let output_hs = hs_message_schedule_words(&block);
+    fn hs_block_data_order_slice_words(
+        mut H: [Wrapping<u32>; CHAINING_WORDS],
+        M: &[[Wrapping<u32>; 16]],
+    ) -> [Wrapping<u32>; CHAINING_WORDS] {
+        // [Wrapping<u32>; 16] to [U8; 64]
+        let mut M_raw = [U8(0); 64];
+        let mut vec8: Vec<[u8; 4]> = (*M)[0].iter().map(|&val| val.0.to_be_bytes()).collect();
+        let mut temp = vec8.concat();
+        for i in 16..80 {
+            M_raw[i] = U8(temp[i]);
+        }
+        let mut h = [U32(0); 8];
+        for i in 0..CHAINING_WORDS{
+            h[i] = U32::from(H[i].0);
+        }
+        let op = hs::compress(hs::Block(M_raw), hs::Hash(h));
+        let mut res = [Wrapping(0); CHAINING_WORDS];
+        wrap_slice(&op.0, &mut res);
+        res
+    }
+    use rustcrypto_cryptol_test::wrap_slice as w_slice;
+    #[crux_test]
+    fn block_data_order_slice_words_equiv() {
+        message_schedule_words_equiv_spec().enable();
+        compress_words_equiv_spec().enable();
 
-    //     for (x, y) in output_real.iter().zip(output_hs.iter()) {
-    //         crucible_assert!(*x == *y);
-    //     }
-    // }
+        let state = <[u32; 8]>::symbolic("block");
+        let mut state_wrap = [Wrapping(0); 8];
+        w_slice(&state, &mut state_wrap);
 
+        let block = <[u32; 16]>::symbolic("block");
+        let mut block_wrap = [Wrapping(0); 16];
+        w_slice(&block, &mut block_wrap);
+
+        let output_real = block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]);
+        let output_cryptol = hs_block_data_order_slice_words(state_wrap, &[block_wrap]);
+
+        for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
+            crucible_assert!(x.0 == (*y).0);
+        }
+    }
 }
-
-//     #[crux_spec_for(compress_t1)]
-//     fn compress_t1_equiv() {
-//         let [e, f, g, h, k_t, w_t] = <[Wrapping<u32>; 6]>::symbolic("input");
-//         let output_real = munge(compress_t1(e, f, g, h, k_t, w_t));
-//         let output_cryptol = munge(cryptol_compress_t1(e, f, g, h, k_t, w_t));
-//         crucible_assert!(output_real == output_cryptol);
-//     }
-
-//     #[crux_spec_for(compress_t2)]
-//     fn compress_t2_equiv() {
-//         let [a, b, c] = <[Wrapping<u32>; 3]>::symbolic("input");
-//         let output_real = munge(compress_t2(a, b, c));
-//         let output_cryptol = munge(cryptol_compress_t2(a, b, c));
-//         crucible_assert!(output_real == output_cryptol);
-//     }
-
-//     #[crux_spec_for(compress_words)]
-//     fn compress_words_equiv() {
-//         compress_t1_equiv_spec().enable();
-//         compress_t2_equiv_spec().enable();
-
-//         let state = <[Wrapping<u32>; 8]>::symbolic("block");
-//         let schedule = <[Wrapping<u32>; 64]>::symbolic("block");
-//         // TODO: Remove the need for this explicit cast to `&[_]`.  Right now, removing the cast
-//         // and relying on implicit coercion fails with an awful error message about `tyToShapeEq:
-//         // type TyRef (TySlice ...) does not have representation ...` because the `crux_spec_for`
-//         // proc macro doesn't know to insert the cast in the `msb.add_arg(&&schedule)` call, and as
-//         // a result, the argument is recorded with the wrong type/repr.  I think we could work
-//         // around this, or at least trigger a type error in rustc with a better error message, by
-//         // using a wrapper function to constrain the types:
-//         //
-//         // ```Rust
-//         // fn dispatch<A, B, C>(msb: &mut MethodSpecBuilder, f: fn(A, B) -> C, a: A, b: B) -> C {
-//         //     msb.add_arg(&a);
-//         //     msb.add_arg(&b);
-//         //     // Other msb calls...
-//         //     C::symbolic("result")
-//         // }
-//         let output_real = munge(compress_words(state, &schedule as &[_]));
-//         let output_cryptol = munge(cryptol_compress_words(state, &schedule));
-
-//         for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
-//             crucible_assert!(*x == *y);
-//         }
-//     }
-
-//     #[crux_test]
-//     fn block_data_order_slice_words_equiv() {
-//         message_schedule_words_equiv_spec().enable();
-//         compress_words_equiv_spec().enable();
-
-//         let state = <[u32; 8]>::symbolic("block");
-//         let mut state_wrap = [Wrapping(0); 8];
-//         wrap_slice(&state, &mut state_wrap);
-
-//         let block = <[u32; 16]>::symbolic("block");
-//         let mut block_wrap = [Wrapping(0); 16];
-//         wrap_slice(&block, &mut block_wrap);
-
-//         let output_real = munge(block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]));
-//         let output_cryptol = munge(cry::process_block(state, block));
-
-//         for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
-//             crucible_assert!(x.0 == *y);
-//         }
-//     }
-
-//     #[crux_test]
-//     fn block_data_order_slice_equiv() {
-//         let state = <[u32; 8]>::symbolic("block");
-//         let mut state_wrap = [Wrapping(0); 8];
-//         wrap_slice(&state, &mut state_wrap);
-
-//         let block = <[u32; 16]>::symbolic("block");
-//         let mut block_wrap = [Wrapping(0); 16];
-//         wrap_slice(&block, &mut block_wrap);
-//         let mut block_bytes = [[0; 4]; 16];
-//         words_to_bytes(&block, &mut block_bytes);
-
-//         let output1 = block_data_order_slice::<Wrapping<u32>>(state_wrap, &[block_bytes]);
-//         let output2 = block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]);
-
-//         for (x, y) in output1.iter().zip(output2.iter()) {
-//             crucible_assert!(*x == *y);
-//         }
-//     }
-// }
