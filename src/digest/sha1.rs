@@ -222,7 +222,6 @@ pub mod cry{
     use crucible::*;
     // use super::crucible::cryptol;
     pub type btype = ([u32; 5], [u32; 16]);
-    pub type step3_type = (u32, u32, u32, u32, u32, [u32; 20]);
     cryptol! {
         path "Primitive::Keyless::Hash::SHA1";
 
@@ -230,8 +229,7 @@ pub mod cry{
             = "block";
 
         pub fn rotl(a: u32, n: u32) -> u32
-            = "rotl";
-            //r#" \(a: [32]) (n: [32]) -> (a <<< n)"#;
+            = r#" \(a: [32]) (n: [32]) -> (a <<< n)"#;
 
         pub fn parity(a: u32, b: u32, c: u32) -> u32
             = r#"\(a: [32]) (b: [32]) (c: [32]) -> (a ^ b ^ c)"#;
@@ -243,6 +241,19 @@ pub mod cry{
             = "maj";
             //r#"\(x: [32]) (y: [32]) (z: [32]) -> (x && y) || (x && z) || (y && z)"#;
 
+
+    }
+}
+
+// Of course, CRYPTOLPATH need to get updated by adding path to the current directory
+#[cfg(crux)]
+pub mod step {
+    extern crate crucible;
+    use crucible::*;
+    pub type step3_type = (u32, u32, u32, u32, u32, [u32; 20]);
+
+    cryptol! {
+        path "step3";
         pub fn step3_ch (arg: step3_type) -> (u32, u32, u32, u32, u32)
             = "step3_ch";
 
@@ -255,7 +266,6 @@ pub mod cry{
         pub fn step3_parity2 (arg: step3_type) -> (u32, u32, u32, u32, u32)
             = "step3_parity2";
     }
-
 }
 
 #[cfg(crux)]
@@ -331,7 +341,7 @@ mod crux_test {
     for i in 0..20 {
         ws[i] = W[i].0;
     }
-    let res = cry::step3_ch((a.0, b.0, c.0, d.0, e.0, ws));
+    let res = step::step3_ch((a.0, b.0, c.0, d.0, e.0, ws));
     (Wrapping(res.0), Wrapping(res.1), Wrapping(res.2), Wrapping(res.3), Wrapping(res.4))
     }
 
@@ -348,7 +358,7 @@ mod crux_test {
     for i in 0..20 {
         ws[i] = W[i].0;
     }
-    let res = cry::step3_maj((a.0, b.0, c.0, d.0, e.0, ws));
+    let res = step::step3_maj((a.0, b.0, c.0, d.0, e.0, ws));
     (Wrapping(res.0), Wrapping(res.1), Wrapping(res.2), Wrapping(res.3), Wrapping(res.4))
     }
 
@@ -365,7 +375,7 @@ mod crux_test {
     for i in 0..20 {
         ws[i] = W[i].0;
     }
-    let res = cry::step3_parity1((a.0, b.0, c.0, d.0, e.0, ws));
+    let res = step::step3_parity1((a.0, b.0, c.0, d.0, e.0, ws));
     (Wrapping(res.0), Wrapping(res.1), Wrapping(res.2), Wrapping(res.3), Wrapping(res.4))
     }
 
@@ -382,7 +392,7 @@ mod crux_test {
     for i in 0..20 {
         ws[i] = W[i].0;
     }
-    let res = cry::step3_parity2((a.0, b.0, c.0, d.0, e.0, ws));
+    let res = step::step3_parity2((a.0, b.0, c.0, d.0, e.0, ws));
     (Wrapping(res.0), Wrapping(res.1), Wrapping(res.2), Wrapping(res.3), Wrapping(res.4))
     }
 
@@ -482,10 +492,14 @@ mod crux_test {
         rotl_equiv_spec().enable();
         ch_equiv_spec().enable();
         maj_equiv_spec().enable();
-        step3_ch_equiv_spec().enable();
-        step3_maj_equiv_spec().enable();
-        step3_parity1_equiv_spec().enable();
-        step3_parity2_equiv_spec().enable();
+        // step3_ch_equiv_spec().enable();
+        // step3_maj_equiv_spec().enable();
+        // step3_parity1_equiv_spec().enable();
+        // step3_parity2_equiv_spec().enable();
+        override_(step3_ch, cryptol_step3_ch);
+        override_(step3_maj, cryptol_step3_maj);
+        override_(step3_parity1, cryptol_step3_parity1);
+        override_(step3_parity2, cryptol_step3_parity2);
 
         let state = <[u32; 5]>::symbolic("state");
         let mut state_wrap = [Wrapping(0); 5];
