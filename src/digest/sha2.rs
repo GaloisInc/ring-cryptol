@@ -748,10 +748,6 @@ mod rustcrypto_hs_test {
 
     type W32 = Wrapping<u32>;
 
-    // use rustcrypto_cryptol_test::{ unwrap_slice
-    //     , wrap_slice };
-
-    // proved
     #[crux_spec_for(ch)]
     fn ch_equiv(){
         let [a, b, c] = <[W32; 3]>::symbolic("input");
@@ -760,7 +756,6 @@ mod rustcrypto_hs_test {
         crucible_assert!(output_real.0 == u32::from(output_hs));
     }
 
-    // proved
     #[crux_spec_for(maj)]
     fn maj_equiv(){
         let [a, b, c] = <[W32; 3]>::symbolic("input");
@@ -769,27 +764,29 @@ mod rustcrypto_hs_test {
         crucible_assert!(output_real.0 == u32::from(output_hs));
     }
 
-    // proved
-    // #[crux_spec_for(Word::rotr)]
+    // FIXME couldnt_find_a_call
     #[crux_test]
+    // #[crux_spec_for(Word::rotr)]
     fn rotr_equiv(){
         let [mut a, n] = <[W32; 2]>::symbolic("inputs");
         let mut b = U32::from(a.0);
         crucible_assert!(a.rotr(n.0).0 == u32::from(b.rotate_right(n.0 as usize)));
     }
 
-    // proved
-    // #[crux_spec_for(sigma_0)]
+    // FIXME couldnt_find_a_call
+    // FIXME invalid
     #[crux_test]
+    // #[crux_spec_for(sigma_0)]
     fn sigma_0_equiv(){
         let [mut x, i] = <[W32; 2]>::symbolic("inputs");
         let mut y = U32::from(x.0);
         crucible_assert!(sigma_0(x).0 == u32::from(hs::sigma(y, i.0 as usize, 0)));
     }
 
-    // proved
-    // #[crux_spec_for(sigma_1)]
+    // FIXME couldnt_find_a_call
+    // FIXME invalid
     #[crux_test]
+    // #[crux_spec_for(sigma_1)]
     fn sigma_1_equiv(){
         let [mut x, i] = <[W32; 2]>::symbolic("inputs");
         let mut y = U32::from(x.0);
