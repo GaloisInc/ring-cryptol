@@ -751,17 +751,17 @@ mod rustcrypto_hs_test {
     #[crux_spec_for(ch)]
     fn ch_equiv(){
         let [a, b, c] = <[W32; 3]>::symbolic("input");
-        let output_real = munge(ch(a, b, c));
-        let output_hs = munge(hs::ch(U32::from(a.0), U32::from(b.0), U32::from(c.0)));
-        crucible_assert!(output_real.0 == u32::from(output_hs));
+        let output_real = munge(ch(a, b, c)).0;
+        let output_hs = u32::from(munge(hs::ch(U32::from(a.0), U32::from(b.0), U32::from(c.0))));
+        crucible_assert!(output_real == output_hs);
     }
 
     #[crux_spec_for(maj)]
     fn maj_equiv(){
         let [a, b, c] = <[W32; 3]>::symbolic("input");
-        let output_real = munge(maj(a, b, c));
-        let output_hs = munge(hs::maj(U32::from(a.0), U32::from(b.0), U32::from(c.0)));
-        crucible_assert!(output_real.0 == u32::from(output_hs));
+        let output_real = munge(maj(a, b, c)).0;
+        let output_hs = u32::from(munge(hs::maj(U32::from(a.0), U32::from(b.0), U32::from(c.0))));
+        crucible_assert!(output_real == output_hs);
     }
 
     // FIXME couldnt_find_a_call
@@ -773,24 +773,21 @@ mod rustcrypto_hs_test {
         crucible_assert!(a.rotr(n.0).0 == u32::from(b.rotate_right(n.0 as usize)));
     }
 
-    // FIXME couldnt_find_a_call
-    // FIXME invalid
-    #[crux_test]
-    // #[crux_spec_for(sigma_0)]
+    #[crux_spec_for(sigma_0)]
     fn sigma_0_equiv(){
-        let [mut x, i] = <[W32; 2]>::symbolic("inputs");
-        let mut y = U32::from(x.0);
-        crucible_assert!(sigma_0(x).0 == u32::from(hs::sigma(y, i.0 as usize, 0)));
+        let x = <W32>::symbolic("x");
+        let output_real = sigma_0(x).0;
+        let output_hs = u32::from(hs::sigma(U32::from(x.0), 2, 0)); // σ0 is i=2,op=0
+        crucible_assert!(output_real == output_hs);
     }
 
-    // FIXME couldnt_find_a_call
     // FIXME invalid
-    #[crux_test]
-    // #[crux_spec_for(sigma_1)]
+    #[crux_spec_for(sigma_1)]
     fn sigma_1_equiv(){
         let [mut x, i] = <[W32; 2]>::symbolic("inputs");
-        let mut y = U32::from(x.0);
-        crucible_assert!(sigma_1(x).0 == u32::from(hs::sigma(y, i.0 as usize, 1)));
+        let output_real = sigma_1(x).0;
+        let output_hs = u32::from(hs::sigma(U32::from(x.0), 3, 0)); // σ1 is i=3,op=0
+        crucible_assert!(output_real == output_hs);
     }
 
     fn hs_compress_t1(
