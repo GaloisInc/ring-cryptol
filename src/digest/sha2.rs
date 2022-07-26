@@ -777,16 +777,15 @@ mod rustcrypto_hs_test {
     fn sigma_0_equiv(){
         let x = <W32>::symbolic("x");
         let output_real = sigma_0(x).0;
-        let output_hs = u32::from(hs::sigma(U32::from(x.0), 2, 0)); // σ0 is i=2,op=0
+        let output_hs = u32::from(hs::sigma(U32::from(x.0), /*σ0*/ 2, 0));
         crucible_assert!(output_real == output_hs);
     }
 
-    // FIXME invalid
     #[crux_spec_for(sigma_1)]
     fn sigma_1_equiv(){
         let [mut x, i] = <[W32; 2]>::symbolic("inputs");
         let output_real = sigma_1(x).0;
-        let output_hs = u32::from(hs::sigma(U32::from(x.0), 3, 0)); // σ1 is i=3,op=0
+        let output_hs = u32::from(hs::sigma(U32::from(x.0), /*σ1*/ 3, 0));
         crucible_assert!(output_real == output_hs);
     }
 
@@ -800,6 +799,8 @@ mod rustcrypto_hs_test {
     ) -> Wrapping<u32> {
         h + sigma_1(e) + ch(e, f, g) +  k_t + w_t
     }
+    // FIXME: the tests of sigma0 and sigma1 don't help us in compress, where we need SIGMA0 and
+    // SIGMA1
 
     fn hs_compress_t2(
         a: Wrapping<u32>,
