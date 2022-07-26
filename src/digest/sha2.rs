@@ -764,14 +764,6 @@ mod rustcrypto_hs_test {
         crucible_assert!(output_real == output_hs);
     }
 
-    // FIXME couldnt_find_a_call
-    #[crux_test]
-    // #[crux_spec_for(Word::rotr)]
-    fn rotr_equiv(){
-        let [mut a, n] = <[W32; 2]>::symbolic("inputs");
-        let mut b = U32::from(a.0);
-        crucible_assert!(a.rotr(n.0).0 == u32::from(b.rotate_right(n.0 as usize)));
-    }
 
     #[crux_spec_for(sigma_0)]
     fn sigma_0_equiv(){
@@ -789,45 +781,28 @@ mod rustcrypto_hs_test {
         crucible_assert!(output_real == output_hs);
     }
 
-    fn hs_compress_t1(
-        e: Wrapping<u32>,
-        f: Wrapping<u32>,
-        g: Wrapping<u32>,
-        h: Wrapping<u32>,
-        k_t: Wrapping<u32>,
-        w_t: Wrapping<u32>,
-    ) -> Wrapping<u32> {
-        h + sigma_1(e) + ch(e, f, g) +  k_t + w_t
-    }
     // FIXME: the tests of sigma0 and sigma1 don't help us in compress, where we need SIGMA0 and
     // SIGMA1
 
-    fn hs_compress_t2(
-        a: Wrapping<u32>,
-        b: Wrapping<u32>,
-        c: Wrapping<u32>,
-    ) -> Wrapping<u32> {
-        sigma_0(a) + maj(a, b, c)
-    }
-
-    // proved
     #[crux_spec_for(compress_t1)]
     fn compress_t1_equiv() {
-        // sigma0_equiv_spec().enable();
-        // sigma1_equiv_spec().enable();
-        let [e, f, g, h, k_t, w_t] = <[Wrapping<u32>; 6]>::symbolic("input");
-        let output_real = munge(compress_t1(e, f, g, h, k_t, w_t));
-        let output_hs = munge(hs_compress_t1(e, f, g, h, k_t, w_t));
+        let u = |w:W32| U32::from(w.0);
+        let hs_compress_t1 = |e, f, g, h, k_t, w_t| h + hs::sigma(e, /*Σ1*/ 1, 1) + hs::ch(e, f, g) + k_t + w_t;
+
+        let [e, f, g, h, k_t, w_t] = <[W32; 6]>::symbolic("input");
+        let output_real = munge(compress_t1(e, f, g, h, k_t, w_t)).0;
+        let output_hs = u32::from(munge(hs_compress_t1(u(e), u(f), u(g), u(h), u(k_t), u(w_t))));
         crucible_assert!(output_real == output_hs);
     }
 
-    // proved
     #[crux_spec_for(compress_t2)]
-    // #[crux_test]
     fn compress_t2_equiv() {
-        let [a, b, c] = <[Wrapping<u32>; 3]>::symbolic("input");
-        let output_real = munge(compress_t2(a, b, c));
-        let output_hs = munge(hs_compress_t2(a, b, c));
+        let u = |w:W32| U32::from(w.0);
+        let hs_compress_t2 = |a, b, c| hs::sigma(a, /*Σ0*/ 0, 1) + hs::maj(a, b, c);
+
+        let [a, b, c] = <[W32; 3]>::symbolic("input");
+        let output_real = munge(compress_t2(a, b, c)).0;
+        let output_hs = u32::from(munge(hs_compress_t2(u(a), u(b), u(c))));
         crucible_assert!(output_real == output_hs);
     }
 
