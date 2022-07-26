@@ -764,6 +764,10 @@ mod rustcrypto_hs_test {
         crucible_assert!(output_real == output_hs);
     }
 
+    // Σ0 is hs::sigma(…, i=0, op=1)
+    // Σ1 is hs::sigma(…, i=1, op=1)
+    // σ0 is hs::sigma(…, i=2, op=0)
+    // σ1 is hs::sigma(…, i=3, op=0)
 
     #[crux_spec_for(sigma_0)]
     fn sigma_0_equiv(){
