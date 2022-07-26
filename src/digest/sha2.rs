@@ -748,16 +748,14 @@ mod rustcrypto_hs_test {
 
     type W32 = Wrapping<u32>;
 
-    // Can't use std::convert::{From,Into} because these types don't come from this crate.
-    trait To<T> { fn to(self) -> T; }
-    impl To<U32> for W32 { fn to(self) -> U32 { U32::from(self.0) } }
-    impl To<W32> for U32 { fn to(self) -> W32 { Wrapping(self.0)  } }
+    fn u(w:W32) -> U32 { U32::from(w.0) }
+    fn w(u:U32) -> W32 { Wrapping(u.0) }
 
     #[crux_spec_for(ch)]
     fn ch_equiv(){
         let [a, b, c] = <[W32; 3]>::symbolic("input");
         let output_real = ch(a, b, c);
-        let output_hs = hs::ch(a.to(), b.to(), c.to()).to();
+        let output_hs = w(hs::ch(u(a), u(b), u(c)));
         crucible_assert!(output_real == output_hs);
     }
 
@@ -765,7 +763,7 @@ mod rustcrypto_hs_test {
     fn maj_equiv(){
         let [a, b, c] = <[W32; 3]>::symbolic("input");
         let output_real = maj(a, b, c);
-        let output_hs = hs::maj(a.to(), b.to(), c.to()).to();
+        let output_hs = w(hs::maj(u(a), u(b), u(c)));
         crucible_assert!(output_real == output_hs);
     }
 
@@ -778,7 +776,7 @@ mod rustcrypto_hs_test {
     fn sigma_0_equiv(){
         let x = <W32>::symbolic("input");
         let output_real = sigma_0(x);
-        let output_hs = hs::sigma(x.to(), /*σ0*/ 2, 0).to();
+        let output_hs = w(hs::sigma(u(x), /*σ0*/ 2, 0));
         crucible_assert!(output_real == output_hs);
     }
 
@@ -786,7 +784,7 @@ mod rustcrypto_hs_test {
     fn sigma_1_equiv(){
         let x = <W32>::symbolic("input");
         let output_real = sigma_1(x);
-        let output_hs = hs::sigma(x.to(), /*σ1*/ 3, 0).to();
+        let output_hs = w(hs::sigma(u(x), /*σ1*/ 3, 0));
         crucible_assert!(output_real == output_hs);
     }
 
@@ -799,7 +797,7 @@ mod rustcrypto_hs_test {
 
         let [e, f, g, h, k_t, w_t] = <[W32; 6]>::symbolic("input");
         let output_real = compress_t1(e, f, g, h, k_t, w_t);
-        let output_hs = hs_compress_t1(e.to(), f.to(), g.to(), h.to(), k_t.to(), w_t.to()).to();
+        let output_hs = w(hs_compress_t1(u(e), u(f), u(g), u(h), u(k_t), u(w_t)));
         crucible_assert!(output_real == output_hs);
     }
 
@@ -809,7 +807,7 @@ mod rustcrypto_hs_test {
 
         let [a, b, c] = <[W32; 3]>::symbolic("input");
         let output_real = compress_t2(a, b, c);
-        let output_hs = hs_compress_t2(a.to(), b.to(), c.to()).to();
+        let output_hs = w(hs_compress_t2(u(a), u(b), u(c)));
         crucible_assert!(output_real == output_hs);
     }
 
