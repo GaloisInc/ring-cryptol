@@ -748,22 +748,34 @@ mod rustcrypto_hs_test {
 
     type W32 = Wrapping<u32>;
 
-    fn u(w:W32) -> U32 { U32::from(w.0) }
-    fn w(u:U32) -> W32 { Wrapping(u.0) }
+    fn unwrap(w:W32) -> U32 { U32::from(w.0) }
+    fn unwrap_slice(src: &[W32], dest: &mut [U32]) {
+        assert!(src.len() == dest.len());
+        for (s, d) in src.iter().zip(dest.iter_mut()) {
+            *d = unwrap(*s)
+        }
+    }
+    fn wrap(u:U32) -> W32 { Wrapping(u.0) }
+    fn wrap_slice(src: &[U32], dest: &mut [W32]) {
+        assert!(src.len() == dest.len());
+        for (s, d) in src.iter().zip(dest.iter_mut()) {
+            *d = wrap(*s)
+        }
+    }
 
     #[crux_spec_for(ch)]
     fn ch_equiv(){
         let [a, b, c] = <[W32; 3]>::symbolic("input");
-        let output_real = ch(a, b, c);
-        let output_hs = w(hs::ch(u(a), u(b), u(c)));
+        let output_real = munge(ch(a, b, c));
+        let output_hs = munge(wrap(hs::ch(unwrap(a), unwrap(b), unwrap(c))));
         crucible_assert!(output_real == output_hs);
     }
 
     #[crux_spec_for(maj)]
     fn maj_equiv(){
         let [a, b, c] = <[W32; 3]>::symbolic("input");
-        let output_real = maj(a, b, c);
-        let output_hs = w(hs::maj(u(a), u(b), u(c)));
+        let output_real = munge(maj(a, b, c));
+        let output_hs = munge(wrap(hs::maj(unwrap(a), unwrap(b), unwrap(c))));
         crucible_assert!(output_real == output_hs);
     }
 
@@ -775,16 +787,16 @@ mod rustcrypto_hs_test {
     #[crux_spec_for(sigma_0)]
     fn sigma_0_equiv(){
         let x = <W32>::symbolic("input");
-        let output_real = sigma_0(x);
-        let output_hs = w(hs::sigma(u(x), /*σ0*/ 2, 0));
+        let output_real = munge(sigma_0(x));
+        let output_hs = munge(wrap(hs::sigma(unwrap(x), /*σ0*/ 2, 0)));
         crucible_assert!(output_real == output_hs);
     }
 
     #[crux_spec_for(sigma_1)]
     fn sigma_1_equiv(){
         let x = <W32>::symbolic("input");
-        let output_real = sigma_1(x);
-        let output_hs = w(hs::sigma(u(x), /*σ1*/ 3, 0));
+        let output_real = munge(sigma_1(x));
+        let output_hs = munge(wrap(hs::sigma(unwrap(x), /*σ1*/ 3, 0)));
         crucible_assert!(output_real == output_hs);
     }
 
@@ -796,8 +808,8 @@ mod rustcrypto_hs_test {
         let hs_compress_t1 = |e, f, g, h, k_t, w_t| h + hs::sigma(e, /*Σ1*/ 1, 1) + hs::ch(e, f, g) + k_t + w_t;
 
         let [e, f, g, h, k_t, w_t] = <[W32; 6]>::symbolic("input");
-        let output_real = compress_t1(e, f, g, h, k_t, w_t);
-        let output_hs = w(hs_compress_t1(u(e), u(f), u(g), u(h), u(k_t), u(w_t)));
+        let output_real = munge(compress_t1(e, f, g, h, k_t, w_t));
+        let output_hs = munge(wrap(hs_compress_t1(unwrap(e), unwrap(f), unwrap(g), unwrap(h), unwrap(k_t), unwrap(w_t))));
         crucible_assert!(output_real == output_hs);
     }
 
@@ -806,17 +818,11 @@ mod rustcrypto_hs_test {
         let hs_compress_t2 = |a, b, c| hs::sigma(a, /*Σ0*/ 0, 1) + hs::maj(a, b, c);
 
         let [a, b, c] = <[W32; 3]>::symbolic("input");
-        let output_real = compress_t2(a, b, c);
-        let output_hs = w(hs_compress_t2(u(a), u(b), u(c)));
+        let output_real = munge(compress_t2(a, b, c));
+        let output_hs = munge(wrap(hs_compress_t2(unwrap(a), unwrap(b), unwrap(c))));
         crucible_assert!(output_real == output_hs);
     }
 
-    fn unwrap_slice(src: &[Wrapping<u32>], dest: &mut [U32]) {
-        assert!(src.len() == dest.len());
-        for (x, y) in src.iter().zip(dest.iter_mut()) {
-            *y = U32::from(x.0);
-        }
-    }
     fn hs_compress_words(
         H: [Wrapping<u32>; 8],
         W: &[Wrapping<u32>],
@@ -833,13 +839,6 @@ mod rustcrypto_hs_test {
         let mut output = [Wrapping(0); 8];
         wrap_slice(&(output_raw.0), &mut output);
         output
-    }
-
-    pub fn wrap_slice(src: &[U32], dest: &mut [Wrapping<u32>]) {
-        assert!(src.len() == dest.len());
-        for (x, y) in src.iter().zip(dest.iter_mut()) {
-            y.0 = u32::from(*x);
-        }
     }
 
     // proved
