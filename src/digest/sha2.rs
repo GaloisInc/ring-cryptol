@@ -746,6 +746,8 @@ mod rustcrypto_hs_test {
     use hacspec_sha256 as hs;
     use hacspec_lib::prelude::*;
 
+    const HS_K_SIZE: usize = hs::K_SIZE;
+
     type W32 = Wrapping<u32>;
 
     fn unwrap(w:W32) -> U32 { U32::from(w.0) }
