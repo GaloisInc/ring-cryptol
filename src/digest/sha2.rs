@@ -845,31 +845,21 @@ mod rustcrypto_hs_test {
             wrap_slice(&output_Hu, &mut output_Hw);
             output_Hw
         }
+
+                 ch_equiv_spec().enable();
+                maj_equiv_spec().enable();
+            sigma_0_equiv_spec().enable();
+            sigma_1_equiv_spec().enable();
         compress_t1_equiv_spec().enable();
         compress_t2_equiv_spec().enable();
 
-        let state = <[Wrapping<u32>; 8]>::symbolic("block");
-        let schedule = <[Wrapping<u32>; 64]>::symbolic("block");
-        // TODO: Remove the need for this explicit cast to `&[_]`.  Right now, removing the cast
-        // and relying on implicit coercion fails with an awful error message about `tyToShapeEq:
-        // type TyRef (TySlice ...) does not have representation ...` because the `crux_spec_for`
-        // proc macro doesn't know to insert the cast in the `msb.add_arg(&&schedule)` call, and as
-        // a result, the argument is recorded with the wrong type/repr.  I think we could work
-        // around this, or at least trigger a type error in rustc with a better error message, by
-        // using a wrapper function to constrain the types:
-        //
-        // ```Rust
-        // fn dispatch<A, B, C>(msb: &mut MethodSpecBuilder, f: fn(A, B) -> C, a: A, b: B) -> C {
-        //     msb.add_arg(&a);
-        //     msb.add_arg(&b);
-        //     // Other msb calls...
-        //     C::symbolic("result")
-        // }
-        let output_real = munge(compress_words(state, &schedule as &[_]));
-        let output_hs = munge(hs_compress_words(state, &schedule));
+        let state = <[W32; CHAINING_WORDS]>::symbolic("block");
+        let schedule = <[W32; HS_K_SIZE]>::symbolic("block");
 
-        for (x, y) in output_real.iter().zip(output_hs.iter()) {
-            crucible_assert!(*x == *y);
+        let output_real = munge(compress_words(state, &schedule));
+        let output_hs = munge(hs_compress_words(state, &schedule));
+        for (real, hs) in output_real.iter().zip(output_hs.iter()) {
+            crucible_assert!(*real == *hs);
         }
     }
 
