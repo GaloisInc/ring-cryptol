@@ -877,7 +877,7 @@ mod rustcrypto_hs_test {
 
     #[crux_spec_for(message_schedule_one)]
     fn message_schedule_one_equiv() {
-        let hs_message_schedule_one =  |a, b, c, d| hs_sigma_1(a) + b + hs_sigma_0(c) + d;
+        let hs_message_schedule_one = |a, b, c, d| hs_sigma_1(a) + b + hs_sigma_0(c) + d;
         sigma_0_equiv_spec().enable();
         sigma_1_equiv_spec().enable();
         let [a, b, c, d] = <[W32; 4]>::symbolic("input");
