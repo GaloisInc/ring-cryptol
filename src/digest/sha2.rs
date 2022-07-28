@@ -802,9 +802,6 @@ mod rustcrypto_hs_test {
         crucible_assert!(output_real == output_hs);
     }
 
-    // FIXME: the tests of sigma0 and sigma1 don't help us in compress, where we need SIGMA0 and
-    // SIGMA1
-
     #[crux_spec_for(compress_t1)]
     fn compress_t1_equiv() {
         let hs_compress_t1 = |e, f, g, h, k_t, w_t| h + hs::sigma(e, /*Σ1*/ 1, 1) + hs::ch(e, f, g) + k_t + w_t;
@@ -825,8 +822,6 @@ mod rustcrypto_hs_test {
         crucible_assert!(output_real == output_hs);
     }
 
-
-    // proved
     #[crux_spec_for(compress_words)]
     fn compress_words_equiv() {
         fn hs_compress_words(
@@ -839,13 +834,16 @@ mod rustcrypto_hs_test {
             unwrap_slice(&Hw, &mut Hu);
             unwrap_slice(&Ww, &mut Wu);
             // run spec function
-            let hs::Hash(output_Hu) = hs::shuffle(hs::RoundConstantsTable(Wu), hs::Hash(Hu));
+            let hs::Hash(mut output_Hu) = hs::shuffle(hs::RoundConstantsTable(Wu), hs::Hash(Hu));
+            // match the behavior of the implementation (the spec does this `+` in hs::compress)
+            for i in 0..8 {
+                output_Hu[i] = output_Hu[i] + Hu[i];
+            }
             // convert spec's output to implementation's output
             let mut output_Hw = [Wrapping(0); CHAINING_WORDS];
             wrap_slice(&output_Hu, &mut output_Hw);
             output_Hw
         }
-
                  ch_equiv_spec().enable();
                 maj_equiv_spec().enable();
             sigma_0_equiv_spec().enable();
