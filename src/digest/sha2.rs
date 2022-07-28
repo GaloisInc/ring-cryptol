@@ -825,27 +825,26 @@ mod rustcrypto_hs_test {
         crucible_assert!(output_real == output_hs);
     }
 
-    fn hs_compress_words(
-        H: [Wrapping<u32>; 8],
-        W: &[Wrapping<u32>],
-    ) -> [Wrapping<u32>; 8] {
-        let mut H_raw = [U32(0); 8];
-        unwrap_slice(&H, &mut H_raw);
-        let mut W_raw = [U32(0); 64];
-        unwrap_slice(&W, &mut W_raw);
-        for i in 0..64{
-            W_raw [i] = U32::from(W_raw[i]);
-        }
-        let output_raw = hs::shuffle(hs::RoundConstantsTable(W_raw), hs::Hash(H_raw));
-
-        let mut output = [Wrapping(0); 8];
-        wrap_slice(&(output_raw.0), &mut output);
-        output
-    }
 
     // proved
     #[crux_spec_for(compress_words)]
     fn compress_words_equiv() {
+        fn hs_compress_words(
+            Hw: [W32; CHAINING_WORDS],
+            Ww: &[W32]
+        ) -> [W32; CHAINING_WORDS] {
+            // convert implementation's inputs to spec's inputs
+            let mut Hu = [U32(0); CHAINING_WORDS];
+            let mut Wu = [U32(0); HS_K_SIZE];
+            unwrap_slice(&Hw, &mut Hu);
+            unwrap_slice(&Ww, &mut Wu);
+            // run spec function
+            let hs::Hash(output_Hu) = hs::shuffle(hs::RoundConstantsTable(Wu), hs::Hash(Hu));
+            // convert spec's output to implementation's output
+            let mut output_Hw = [Wrapping(0); CHAINING_WORDS];
+            wrap_slice(&output_Hu, &mut output_Hw);
+            output_Hw
+        }
         compress_t1_equiv_spec().enable();
         compress_t2_equiv_spec().enable();
 
