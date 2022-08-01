@@ -870,6 +870,7 @@ mod rustcrypto_hs_test {
         let schedule = <[W32; HS_K_SIZE]>::symbolic("block");
         let output_real = munge(compress_words(state, &schedule));
         let output_hs = munge(hs_compress_words(state, &schedule));
+        crucible_assert!(output_real.len() == output_hs.len());
         for (real, hs) in output_real.iter().zip(output_hs.iter()) {
             crucible_assert!(*real == *hs);
         }
