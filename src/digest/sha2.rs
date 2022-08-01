@@ -889,6 +889,16 @@ mod rustcrypto_hs_test {
 
     #[crux_spec_for(message_schedule_words)]
     fn message_schedule_words_equiv() {
+        fn U32_to_be_bytes(ints: &[U32]) -> Vec<U8> {
+            U32::to_le_bytes(ints).iter().rev().map(|x| *x).collect()
+        }
+        fn U32_from_be_bytes(bytes: &[U8]) -> Vec<U32> {
+            let v = bytes.iter().rev().map(|x| *x).collect::<Vec<_>>();
+            U32::from_le_bytes(&v[..])
+        }
+        override_(U32::to_be_bytes, U32_to_be_bytes);
+        override_(U32::from_be_bytes, U32_from_be_bytes);
+
         fn hs_message_schedule_words(
             M: &[W32; 16],
         ) -> [W32; MAX_ROUNDS] {
