@@ -886,34 +886,22 @@ mod rustcrypto_hs_test {
         crucible_assert!(output_real == output_hs);
     }
 
-
-    // fn unwrap_slice_U8(src: &[Wrapping<u32>]) -> [u8] {
-    //     ((*src).0).to_be_bytes()
-    // }
-
-    // fn bytes_to_U8(src: u32) -> [U8; 4] {
-    //    src.to_be_bytes().map(|x| U32::from(x)).collect()
-    // }
-
-
-    fn hs_message_schedule_words(
-        M: &[Wrapping<u32>; 16],
-    ) -> [Wrapping<u32>; MAX_ROUNDS] {
-        let mut M_raw = [U8(0); 64];
-        let mut vec8: Vec<[u8; 4]> = M.iter().map(|&val| val.0.to_be_bytes()).collect();
-        let mut temp = vec8.concat();
-        for i in 16..80 {
-            M_raw[i] = U8(temp[i]);
-        }
-        let W_raw = hs::schedule(hs::Block(M_raw));
-        let mut W = [Wrapping(0); MAX_ROUNDS];
-        wrap_slice(&(W_raw.0), &mut W[..64]);
-        W
-    }
-
-    // proved
     #[crux_spec_for(message_schedule_words)]
     fn message_schedule_words_equiv() {
+        fn hs_message_schedule_words(
+            M: &[W32; 16],
+        ) -> [W32; MAX_ROUNDS] {
+            let mut M_raw = [U8(0); 64];
+            let mut vec8: Vec<[u8; 4]> = M.iter().map(|&val| val.0.to_be_bytes()).collect();
+            let mut temp = vec8.concat();
+            for i in 16..80 {
+                M_raw[i] = U8(temp[i]);
+            }
+            let W_raw = hs::schedule(hs::Block(M_raw));
+            let mut W = [Wrapping(0); MAX_ROUNDS];
+            wrap_slice(&(W_raw.0), &mut W[..64]);
+            W
+        }
         message_schedule_one_equiv_spec().enable();
 
         let block = <[Wrapping<u32>; 16]>::symbolic("block");
