@@ -900,27 +900,27 @@ mod rustcrypto_hs_test {
         override_(U32::from_be_bytes, U32_from_be_bytes);
 
         fn hs_message_schedule_words(
-            M: &[W32; 16],
+            Mw: &[W32; 16],
         ) -> [W32; MAX_ROUNDS] {
-            let mut M_raw = [U8(0); 64];
-            let mut vec8: Vec<[u8; 4]> = M.iter().map(|&val| val.0.to_be_bytes()).collect();
-            let mut temp = vec8.concat();
-            for i in 16..80 {
-                M_raw[i] = U8(temp[i]);
-            }
-            let W_raw = hs::schedule(hs::Block(M_raw));
-            let mut W = [Wrapping(0); MAX_ROUNDS];
-            wrap_slice(&(W_raw.0), &mut W[..64]);
-            W
+            // convert implementation's inputs to spec's inputs
+            let mut Mb = [U8(0); 64];
+            Mw.iter()
+                .flat_map(|w| unwrap(*w).to_be_bytes().native_slice().to_vec())
+                .enumerate().for_each(|(i, b): (usize, U8)| Mb[i] = b);
+            // run spec function
+            let hs::RoundConstantsTable(output_Wu) = hs::schedule(hs::Block(Mb)); // :: [u8;64=BLOCK_SIZE] 512b → [U32;64=K_SIZE]
+            // convert spec's output to implementation's output
+            let mut output_Ww = [Wrapping(0); MAX_ROUNDS];
+            wrap_slice(&output_Wu, &mut output_Ww[..HS_K_SIZE]); // NOTE: the implementation leaves 64..80 zeros
+            output_Ww
         }
         message_schedule_one_equiv_spec().enable();
-
-        let block = <[Wrapping<u32>; 16]>::symbolic("block");
-        let output_real = message_schedule_words(&block);
-        let output_hs = hs_message_schedule_words(&block);
-
-        for (x, y) in output_real.iter().zip(output_hs.iter()) {
-            crucible_assert!(munge(*x) == munge(*y));
+        let block = <[W32; 16]>::symbolic("block");
+        let output_real = munge(message_schedule_words(&block)); // :: [W32;16] 512b → [W32;80=MAX_ROUNDS] but 64..80 are zeros
+        let output_hs = munge(hs_message_schedule_words(&block));
+        crucible_assert!(output_real.len() == output_hs.len());
+        for (real, hs) in output_real.iter().zip(output_hs.iter()) {
+            crucible_assert!(*real == *hs);
         }
     }
 
