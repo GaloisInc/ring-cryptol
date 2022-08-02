@@ -216,7 +216,17 @@ fn rotl(x: W32, n: u32) -> W32 {
     Wrapping(x.0.rotate_left(n))
 }
 
+// rust crypto vs cryptol
 #[cfg(crux)]
+mod rustcrypto_cryptol_test {
+    extern crate crucible;
+    extern crate crucible_spec_macro;
+    use crucible::*;
+    use crucible::cryptol::munge;
+    use crucible::method_spec::*;
+    use crucible_spec_macro::crux_spec_for;
+    use super::*;
+
 pub mod cry{
     extern crate crucible;
     use crucible::*;
@@ -246,7 +256,6 @@ pub mod cry{
 }
 
 // Of course, CRYPTOLPATH need to get updated by adding path to the current directory
-#[cfg(crux)]
 pub mod step {
     extern crate crucible;
     use crucible::*;
@@ -267,16 +276,6 @@ pub mod step {
             = "step3_parity2";
     }
 }
-
-#[cfg(crux)]
-mod crux_test {
-    extern crate crucible;
-    extern crate crucible_spec_macro;
-    use crucible::*;
-    use crucible::cryptol::munge;
-    use crucible::method_spec::*;
-    use crucible_spec_macro::crux_spec_for;
-    use super::*;
 
 //     use rand::Rng;
 //     #[test]
@@ -517,4 +516,9 @@ mod crux_test {
             crucible_assert!(x.0 == *y);
         }
     }
+}
+
+// rust crypto vs hacspec
+#[cfg(crux)]
+mod rustcrypto_hs_test {
 }
