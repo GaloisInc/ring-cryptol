@@ -939,8 +939,7 @@ mod rustcrypto_hs_test {
         }
     }
 
-    use rustcrypto_cryptol_test::wrap_slice as w_slice;
-    #[crux_test]
+    #[crux_spec_for(block_data_order_slice_words)]
     fn block_data_order_slice_words_equiv() {
         fn hs_block_data_order_slice_words(
             mut Hw: [W32; CHAINING_WORDS],
@@ -962,20 +961,13 @@ mod rustcrypto_hs_test {
         }
         message_schedule_words_equiv_spec().enable();
         compress_words_equiv_spec().enable();
-
-        let state = <[u32; 8]>::symbolic("block");
-        let mut state_wrap = [Wrapping(0); 8];
-        w_slice(&state, &mut state_wrap);
-
-        let block = <[u32; 16]>::symbolic("block");
-        let mut block_wrap = [Wrapping(0); 16];
-        w_slice(&block, &mut block_wrap);
-
-        let output_real = block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]);
-        let output_cryptol = hs_block_data_order_slice_words(state_wrap, &[block_wrap]);
-
-        for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
-            crucible_assert!(x.0 == (*y).0);
+        let state = <[W32; 8]>::symbolic("state");
+        let block = <[W32; 16]>::symbolic("block");
+        let output_real = munge(block_data_order_slice_words(state, &[block]));
+        let output_hs = munge(hs_block_data_order_slice_words(state, &[block]));
+        crucible_assert!(output_real.len() == output_hs.len());
+        for (real, hs) in output_real.iter().zip(output_hs.iter()) {
+            crucible_assert!(*real == *hs);
         }
     }
 }
