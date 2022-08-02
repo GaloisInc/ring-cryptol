@@ -727,6 +727,7 @@ mod rustcrypto_cryptol_test {
         let output1 = block_data_order_slice::<Wrapping<u32>>(state_wrap, &[block_bytes]);
         let output2 = block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]);
 
+        crucible_assert!(output1.len() == output2.len());
         for (x, y) in output1.iter().zip(output2.iter()) {
             crucible_assert!(*x == *y);
         }
