@@ -227,55 +227,55 @@ mod rustcrypto_cryptol_test {
     use crucible_spec_macro::crux_spec_for;
     use super::*;
 
-pub mod cry{
-    extern crate crucible;
-    use crucible::*;
-    // use super::crucible::cryptol;
-    pub type btype = ([u32; 5], [u32; 16]);
-    cryptol! {
-        path "Primitive::Keyless::Hash::SHA1";
+    pub mod cry{
+        extern crate crucible;
+        use crucible::*;
+        // use super::crucible::cryptol;
+        pub type btype = ([u32; 5], [u32; 16]);
+        cryptol! {
+            path "Primitive::Keyless::Hash::SHA1";
 
-        pub fn process_block(hm: btype) -> [u32; 5]
-            = "block";
+            pub fn process_block(hm: btype) -> [u32; 5]
+                = "block";
 
-        pub fn rotl(a: u32, n: u32) -> u32
-            = r#" \(a: [32]) (n: [32]) -> (a <<< n)"#;
+            pub fn rotl(a: u32, n: u32) -> u32
+                = r#" \(a: [32]) (n: [32]) -> (a <<< n)"#;
 
-        pub fn parity(a: u32, b: u32, c: u32) -> u32
-            = r#"\(a: [32]) (b: [32]) (c: [32]) -> (a ^ b ^ c)"#;
+            pub fn parity(a: u32, b: u32, c: u32) -> u32
+                = r#"\(a: [32]) (b: [32]) (c: [32]) -> (a ^ b ^ c)"#;
 
-        pub fn ch(x: u32, y: u32, z: u32) -> u32
-            = r#"\(x: [32]) (y: [32]) (z: [32]) -> (x && y) || (~x && z)"#;
+            pub fn ch(x: u32, y: u32, z: u32) -> u32
+                = r#"\(x: [32]) (y: [32]) (z: [32]) -> (x && y) || (~x && z)"#;
 
-        pub fn maj(x: u32, y: u32, z: u32) -> u32
-            = "maj";
-            //r#"\(x: [32]) (y: [32]) (z: [32]) -> (x && y) || (x && z) || (y && z)"#;
+            pub fn maj(x: u32, y: u32, z: u32) -> u32
+                = "maj";
+                //r#"\(x: [32]) (y: [32]) (z: [32]) -> (x && y) || (x && z) || (y && z)"#;
 
 
+        }
     }
-}
 
-// Of course, CRYPTOLPATH need to get updated by adding path to the current directory
-pub mod step {
-    extern crate crucible;
-    use crucible::*;
-    pub type step3_type = (u32, u32, u32, u32, u32, [u32; 20]);
+    // Of course, CRYPTOLPATH need to get updated by adding path to the current directory
+    pub mod step {
+        extern crate crucible;
+        use crucible::*;
+        pub type step3_type = (u32, u32, u32, u32, u32, [u32; 20]);
 
-    cryptol! {
-        path "step3";
-        pub fn step3_ch (arg: step3_type) -> (u32, u32, u32, u32, u32)
-            = "step3_ch";
+        cryptol! {
+            path "step3";
+            pub fn step3_ch (arg: step3_type) -> (u32, u32, u32, u32, u32)
+                = "step3_ch";
 
-        pub fn step3_maj (arg: step3_type) -> (u32, u32, u32, u32, u32)
-            = "step3_maj";
+            pub fn step3_maj (arg: step3_type) -> (u32, u32, u32, u32, u32)
+                = "step3_maj";
 
-        pub fn step3_parity1 (arg: step3_type) -> (u32, u32, u32, u32, u32)
-            = "step3_parity1";
+            pub fn step3_parity1 (arg: step3_type) -> (u32, u32, u32, u32, u32)
+                = "step3_parity1";
 
-        pub fn step3_parity2 (arg: step3_type) -> (u32, u32, u32, u32, u32)
-            = "step3_parity2";
+            pub fn step3_parity2 (arg: step3_type) -> (u32, u32, u32, u32, u32)
+                = "step3_parity2";
+        }
     }
-}
 
 //     use rand::Rng;
 //     #[test]
