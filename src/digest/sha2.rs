@@ -696,7 +696,7 @@ mod rustcrypto_cryptol_test {
         message_schedule_words_equiv_spec().enable();
         compress_words_equiv_spec().enable();
 
-        let state = <[u32; 8]>::symbolic("block");
+        let state = <[u32; 8]>::symbolic("state");
         let mut state_wrap = [Wrapping(0); 8];
         wrap_slice(&state, &mut state_wrap);
 
@@ -714,7 +714,7 @@ mod rustcrypto_cryptol_test {
 
     #[crux_test]
     fn block_data_order_slice_equiv() {
-        let state = <[u32; 8]>::symbolic("block");
+        let state = <[u32; 8]>::symbolic("state");
         let mut state_wrap = [Wrapping(0); 8];
         wrap_slice(&state, &mut state_wrap);
 
@@ -866,8 +866,8 @@ mod rustcrypto_hs_test {
         }
         compress_t1_equiv_spec().enable();
         compress_t2_equiv_spec().enable();
-        let state = <[W32; CHAINING_WORDS]>::symbolic("block");
-        let schedule = <[W32; HS_K_SIZE]>::symbolic("block");
+        let state = <[W32; CHAINING_WORDS]>::symbolic("state");
+        let schedule = <[W32; HS_K_SIZE]>::symbolic("schedule");
         // TODO: Remove the need for this explicit cast to `&[_]`.  Right now, removing the cast
         // and relying on implicit coercion fails with an awful error message about `tyToShapeEq:
         // type TyRef (TySlice ...) does not have representation ...` because the `crux_spec_for`
