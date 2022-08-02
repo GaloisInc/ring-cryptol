@@ -939,29 +939,27 @@ mod rustcrypto_hs_test {
         }
     }
 
-    fn hs_block_data_order_slice_words(
-        mut H: [Wrapping<u32>; CHAINING_WORDS],
-        M: &[[Wrapping<u32>; 16]],
-    ) -> [Wrapping<u32>; CHAINING_WORDS] {
-        // [Wrapping<u32>; 16] to [U8; 64]
-        let mut M_raw = [U8(0); 64];
-        let mut vec8: Vec<[u8; 4]> = (*M)[0].iter().map(|&val| val.0.to_be_bytes()).collect();
-        let mut temp = vec8.concat();
-        for i in 16..80 {
-            M_raw[i] = U8(temp[i]);
-        }
-        let mut h = [U32(0); 8];
-        for i in 0..CHAINING_WORDS{
-            h[i] = U32::from(H[i].0);
-        }
-        let op = hs::compress(hs::Block(M_raw), hs::Hash(h));
-        let mut res = [Wrapping(0); CHAINING_WORDS];
-        wrap_slice(&op.0, &mut res);
-        res
-    }
     use rustcrypto_cryptol_test::wrap_slice as w_slice;
     #[crux_test]
     fn block_data_order_slice_words_equiv() {
+        fn hs_block_data_order_slice_words(
+            mut Hw: [W32; CHAINING_WORDS],
+            Mw: &[[W32; 16]],
+        ) -> [W32; CHAINING_WORDS] {
+            // convert implementation's inputs to spec's inputs
+            let mut Hu = [U32(0); CHAINING_WORDS];
+            unwrap_slice(&Hw, &mut Hu[..]);
+            let mut Mb = [U8(0); 64];
+            Mw[0].iter()
+                .flat_map(|w| unwrap(*w).to_be_bytes().native_slice().to_vec())
+                .enumerate().for_each(|(i, b): (usize, U8)| Mb[i] = b);
+            // run spec function
+            let hs::Hash(output_Hu) = hs::compress(hs::Block(Mb), hs::Hash(Hu));
+            // convert spec's output to implementation's output
+            let mut output_Hw = [Wrapping(0); CHAINING_WORDS];
+            wrap_slice(&output_Hu, &mut output_Hw);
+            output_Hw
+        }
         message_schedule_words_equiv_spec().enable();
         compress_words_equiv_spec().enable();
 
