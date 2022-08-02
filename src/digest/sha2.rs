@@ -712,6 +712,9 @@ mod rustcrypto_cryptol_test {
         }
     }
 
+    // Note: This test doesn't compare rust crypto vs cryptol. It compares the top-level function
+    // `block_data_order_slice` to the broken-up implementation `block_data_order_slice_words` used
+    // for verifying against the spec.
     #[crux_test]
     fn block_data_order_slice_equiv() {
         let state = <[u32; 8]>::symbolic("state");
@@ -971,4 +974,7 @@ mod rustcrypto_hs_test {
             crucible_assert!(*real == *hs);
         }
     }
+
+    // Note: Comparison of `block_data_order_slice_words` to the top-level function
+    // `block_data_order_slice` is done in the rustcrypto_cryptol_test module.
 }
