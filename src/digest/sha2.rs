@@ -513,6 +513,40 @@ extern "C" {
     );
 }
 
+// rust crypto vs decomposed rust crypto
+#[cfg(crux)]
+mod rustcrypto_rustcrypto_test {
+    extern crate crucible;
+    extern crate crucible_spec_macro;
+    use crucible::*;
+    use crucible::cryptol::munge;
+    use crucible::method_spec::*;
+    use crucible_spec_macro::crux_spec_for;
+    use super::*;
+    use super::rustcrypto_cryptol_test::*;
+
+    #[crux_test]
+    fn block_data_order_slice_equiv() {
+        let state = <[u32; 8]>::symbolic("state");
+        let mut state_wrap = [Wrapping(0); 8];
+        wrap_slice(&state, &mut state_wrap);
+
+        let block = <[u32; 16]>::symbolic("block");
+        let mut block_wrap = [Wrapping(0); 16];
+        wrap_slice(&block, &mut block_wrap);
+        let mut block_bytes = [[0; 4]; 16];
+        words_to_bytes(&block, &mut block_bytes);
+
+        let output1 = block_data_order_slice::<Wrapping<u32>>(state_wrap, &[block_bytes]);
+        let output2 = block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]);
+
+        crucible_assert!(output1.len() == output2.len());
+        for (x, y) in output1.iter().zip(output2.iter()) {
+            crucible_assert!(*x == *y);
+        }
+    }
+}
+
 // rust crypto vs cryptol
 #[cfg(crux)]
 mod rustcrypto_cryptol_test {
@@ -560,7 +594,7 @@ mod rustcrypto_cryptol_test {
         }
     }
 
-    fn words_to_bytes(src: &[u32], dest: &mut [[u8; 4]]) {
+    pub fn words_to_bytes(src: &[u32], dest: &mut [[u8; 4]]) {
         assert!(src.len() == dest.len());
         for (x, y) in src.iter().zip(dest.iter_mut()) {
             *y = x.to_be_bytes();
@@ -709,30 +743,6 @@ mod rustcrypto_cryptol_test {
 
         for (x, y) in output_real.iter().zip(output_cryptol.iter()) {
             crucible_assert!(x.0 == *y);
-        }
-    }
-
-    // Note: This test doesn't compare rust crypto vs cryptol. It compares the top-level function
-    // `block_data_order_slice` to the broken-up implementation `block_data_order_slice_words` used
-    // for verifying against the spec.
-    #[crux_test]
-    fn block_data_order_slice_equiv() {
-        let state = <[u32; 8]>::symbolic("state");
-        let mut state_wrap = [Wrapping(0); 8];
-        wrap_slice(&state, &mut state_wrap);
-
-        let block = <[u32; 16]>::symbolic("block");
-        let mut block_wrap = [Wrapping(0); 16];
-        wrap_slice(&block, &mut block_wrap);
-        let mut block_bytes = [[0; 4]; 16];
-        words_to_bytes(&block, &mut block_bytes);
-
-        let output1 = block_data_order_slice::<Wrapping<u32>>(state_wrap, &[block_bytes]);
-        let output2 = block_data_order_slice_words::<Wrapping<u32>>(state_wrap, &[block_wrap]);
-
-        crucible_assert!(output1.len() == output2.len());
-        for (x, y) in output1.iter().zip(output2.iter()) {
-            crucible_assert!(*x == *y);
         }
     }
 }
@@ -974,7 +984,4 @@ mod rustcrypto_hs_test {
             crucible_assert!(*real == *hs);
         }
     }
-
-    // Note: Comparison of `block_data_order_slice_words` to the top-level function
-    // `block_data_order_slice` is done in the rustcrypto_cryptol_test module.
 }
