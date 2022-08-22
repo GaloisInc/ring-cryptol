@@ -923,6 +923,8 @@ mod rustcrypto_hs_test {
             let v = bytes.iter().rev().map(|x| *x).collect::<Vec<_>>();
             U32::from_le_bytes(&v[..])
         }
+        // FIXME: These overrides are a temporary workaround until we implement bswap in
+        // https://github.com/GaloisInc/crucible.git@crux-mir-spec-macro:src/Mir/TransCustom.hs
         override_(U32::to_be_bytes, U32_to_be_bytes);
         override_(U32::from_be_bytes, U32_from_be_bytes);
 
