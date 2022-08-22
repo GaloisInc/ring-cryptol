@@ -957,13 +957,13 @@ mod rustcrypto_hs_test {
     fn block_data_order_slice_words_equiv() {
         fn hs_block_data_order_slice_words(
             mut Hw: [W32; CHAINING_WORDS],
-            Mw: &[[W32; 16]],
+            Mw: [W32; 16],
         ) -> [W32; CHAINING_WORDS] {
             // convert implementation's inputs to spec's inputs
             let mut Hu = [U32(0); CHAINING_WORDS];
             unwrap_slice(&Hw, &mut Hu[..]);
             let mut Mb = [U8(0); 64];
-            Mw[0].iter()
+            Mw.iter()
                 .flat_map(|w| unwrap(*w).to_be_bytes().native_slice().to_vec())
                 .enumerate().for_each(|(i, b): (usize, U8)| Mb[i] = b);
             // run spec function
@@ -978,7 +978,7 @@ mod rustcrypto_hs_test {
         let state = <[W32; 8]>::symbolic("state");
         let block = <[W32; 16]>::symbolic("block");
         let output_real = munge(block_data_order_slice_words(state, &[block]));
-        let output_hs = munge(hs_block_data_order_slice_words(state, &[block]));
+        let output_hs = munge(hs_block_data_order_slice_words(state, block));
         crucible_assert!(output_real.len() == output_hs.len());
         for (real, hs) in output_real.iter().zip(output_hs.iter()) {
             crucible_assert!(*real == *hs);
