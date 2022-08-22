@@ -115,121 +115,6 @@ fn block_data_order_slice<S: Sha2>(
     H
 }
 
-
-// For verification, we define a word-based version of `block_data_order_slice` and decompose it
-// into smaller functions we can override.
-
-fn block_data_order_slice_words<S: Sha2>(
-    mut H: [S; CHAINING_WORDS],
-    M: &[[S; 16]],
-) -> [S; CHAINING_WORDS] {
-    for M in M {
-        // FIPS 180-4 {6.2.2, 6.4.2} Step 1
-        //
-        // TODO: Use `let W: [S::ZERO; S::ROUNDS]` instead of allocating
-        // `MAX_ROUNDS` items and then slicing to `K.len()`; depends on
-        // https://github.com/rust-lang/rust/issues/43408.
-        let W = message_schedule_words(M);
-        let W = &W[..S::K.len()];
-
-        H = compress_words(H, W);
-    }
-
-    H
-}
-
-fn message_schedule_words<S: Sha2>(
-    M: &[S; 16],
-) -> [S; MAX_ROUNDS] {
-    let mut W = [S::ZERO; MAX_ROUNDS];
-    {
-        let W = &mut W[..S::K.len()];
-        for (W, M) in W.iter_mut().zip(M) {
-            *W = *M;
-        }
-        for t in M.len()..S::K.len() {
-            W[t] = message_schedule_one(
-                W[t - 2],
-                W[t - 7],
-                W[t - 15],
-                W[t - 16],
-            );
-        }
-    }
-    W
-}
-
-fn message_schedule_one<S: Sha2>(
-    a: S,
-    b: S,
-    c: S,
-    d: S,
-) -> S {
-    sigma_1(a) + b + sigma_0(c) + d
-}
-
-fn compress_words<S: Sha2>(
-    mut H: [S; CHAINING_WORDS],
-    W: &[S],
-) -> [S; CHAINING_WORDS] {
-    // FIPS 180-4 {6.2.2, 6.4.2} Step 2
-    let mut a = H[0];
-    let mut b = H[1];
-    let mut c = H[2];
-    let mut d = H[3];
-    let mut e = H[4];
-    let mut f = H[5];
-    let mut g = H[6];
-    let mut h = H[7];
-
-    // FIPS 180-4 {6.2.2, 6.4.2} Step 3
-    assert_eq!(S::K.len(), W.len());
-    for (Kt, Wt) in S::K.iter().zip(W.iter()) {
-        let T1 = compress_t1(e, f, g, h, *Kt, *Wt);
-        let T2 = compress_t2(a, b, c);
-        h = g;
-        g = f;
-        f = e;
-        e = d + T1;
-        d = c;
-        c = b;
-        b = a;
-        a = T1 + T2;
-    }
-
-    // FIPS 180-4 {6.2.2, 6.4.2} Step 4
-    H[0] += a;
-    H[1] += b;
-    H[2] += c;
-    H[3] += d;
-    H[4] += e;
-    H[5] += f;
-    H[6] += g;
-    H[7] += h;
-
-    H
-}
-
-fn compress_t1<S: Sha2>(
-    e: S,
-    f: S,
-    g: S,
-    h: S,
-    k_t: S,
-    w_t: S,
-) -> S {
-    h + SIGMA_1(e) + ch(e, f, g) + k_t + w_t
-}
-
-fn compress_t2<S: Sha2>(
-    a: S,
-    b: S,
-    c: S,
-) -> S {
-    SIGMA_0(a) + maj(a, b, c)
-}
-
-
 // FIPS 180-4 {4.1.1, 4.1.2, 4.1.3}
 #[inline(always)]
 pub(super) fn ch<W: Word>(x: W, y: W, z: W) -> W {
@@ -511,6 +396,120 @@ extern "C" {
         data: *const u8,
         num: c::size_t,
     );
+}
+
+
+// For verification, we define a word-based version of `block_data_order_slice` and decompose it
+// into smaller functions we can override.
+
+fn block_data_order_slice_words<S: Sha2>(
+    mut H: [S; CHAINING_WORDS],
+    M: &[[S; 16]],
+) -> [S; CHAINING_WORDS] {
+    for M in M {
+        // FIPS 180-4 {6.2.2, 6.4.2} Step 1
+        //
+        // TODO: Use `let W: [S::ZERO; S::ROUNDS]` instead of allocating
+        // `MAX_ROUNDS` items and then slicing to `K.len()`; depends on
+        // https://github.com/rust-lang/rust/issues/43408.
+        let W = message_schedule_words(M);
+        let W = &W[..S::K.len()];
+
+        H = compress_words(H, W);
+    }
+
+    H
+}
+
+fn message_schedule_words<S: Sha2>(
+    M: &[S; 16],
+) -> [S; MAX_ROUNDS] {
+    let mut W = [S::ZERO; MAX_ROUNDS];
+    {
+        let W = &mut W[..S::K.len()];
+        for (W, M) in W.iter_mut().zip(M) {
+            *W = *M;
+        }
+        for t in M.len()..S::K.len() {
+            W[t] = message_schedule_one(
+                W[t - 2],
+                W[t - 7],
+                W[t - 15],
+                W[t - 16],
+            );
+        }
+    }
+    W
+}
+
+fn message_schedule_one<S: Sha2>(
+    a: S,
+    b: S,
+    c: S,
+    d: S,
+) -> S {
+    sigma_1(a) + b + sigma_0(c) + d
+}
+
+fn compress_words<S: Sha2>(
+    mut H: [S; CHAINING_WORDS],
+    W: &[S],
+) -> [S; CHAINING_WORDS] {
+    // FIPS 180-4 {6.2.2, 6.4.2} Step 2
+    let mut a = H[0];
+    let mut b = H[1];
+    let mut c = H[2];
+    let mut d = H[3];
+    let mut e = H[4];
+    let mut f = H[5];
+    let mut g = H[6];
+    let mut h = H[7];
+
+    // FIPS 180-4 {6.2.2, 6.4.2} Step 3
+    assert_eq!(S::K.len(), W.len());
+    for (Kt, Wt) in S::K.iter().zip(W.iter()) {
+        let T1 = compress_t1(e, f, g, h, *Kt, *Wt);
+        let T2 = compress_t2(a, b, c);
+        h = g;
+        g = f;
+        f = e;
+        e = d + T1;
+        d = c;
+        c = b;
+        b = a;
+        a = T1 + T2;
+    }
+
+    // FIPS 180-4 {6.2.2, 6.4.2} Step 4
+    H[0] += a;
+    H[1] += b;
+    H[2] += c;
+    H[3] += d;
+    H[4] += e;
+    H[5] += f;
+    H[6] += g;
+    H[7] += h;
+
+    H
+}
+
+fn compress_t1<S: Sha2>(
+    e: S,
+    f: S,
+    g: S,
+    h: S,
+    k_t: S,
+    w_t: S,
+) -> S {
+    h + SIGMA_1(e) + ch(e, f, g) + k_t + w_t
+}
+
+fn compress_t2<S: Sha2>(
+    a: S,
+    b: S,
+    c: S,
+) -> S {
+    SIGMA_0(a) + maj(a, b, c)
 }
 
 // rust crypto vs decomposed rust crypto
