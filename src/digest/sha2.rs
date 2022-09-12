@@ -758,6 +758,8 @@ mod rustcrypto_hs_test {
     use super::*;
     use hacspec_sha256 as hs;
     use hacspec_lib::prelude::*;
+    extern crate std;
+    use std::vec::Vec;
 
     const HS_K_SIZE: usize = hs::K_SIZE;
 
