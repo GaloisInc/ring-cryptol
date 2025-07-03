@@ -560,7 +560,7 @@ mod rustcrypto_cryptol_test {
     mod cry {
         use super::crucible::cryptol;
         cryptol! {
-            path "Primitive::Keyless::Hash::SHA2::SHA256";
+            path "Primitive::Keyless::Hash::SHA2::Instantiations::SHA256";
 
             pub fn message_schedule(m: [u32; 16]) -> [u32; 64]
                 = "messageSchedule_Common";

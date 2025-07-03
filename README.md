@@ -1,3 +1,28 @@
+# Quickstart
+
+* Clone [hacspec](https://github.com/hacspec/hacspec/) in the parent folder:
+  ```
+  cd ..
+  git clone git@github.com:hacspec/hacspec.git
+  cd ring-cryptol
+  ```
+* Download and install the latest `mir-json`, `crux-mir` and `saw` (binary distribution is probably the easiest)
+* Make sure your `CRUX_RUST_LIBRARY_PATH` is set
+* Clone `cryptol-specs` in the parent directory:
+  ```
+  cd ..
+  git clone git@github.com:GaloisInc/cryptol-specs.git
+  cd ring-cryptol
+  ```
+* Set your `CRYPTOLPATH` such that it points to `cryptol-specs` repo
+  ```
+  export CRYPTOLPATH=../cryptol-specs
+  ```
+* Run the proofs:
+  ```
+  CRUX_MIR=crux-mir-comp cargo crux-test --lib -- -s z3 -m
+  ```
+
 THE SOFTWARE IS PROVIDED "AS IS" AND BRIAN SMITH AND THE AUTHORS DISCLAIM
 ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
 OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL BRIAN SMITH OR THE AUTHORS
