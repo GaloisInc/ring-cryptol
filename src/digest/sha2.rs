@@ -516,15 +516,15 @@ fn compress_t2<S: Sha2>(
 #[cfg(crux)]
 mod rustcrypto_rustcrypto_test {
     extern crate crucible;
-    extern crate crucible_spec_macro;
+    extern crate crucible_proc_macros;
     use crucible::*;
     use crucible::cryptol::munge;
     use crucible::method_spec::*;
-    use crucible_spec_macro::crux_spec_for;
+    use crucible_proc_macros::crux_spec_for;
     use super::*;
     use super::rustcrypto_cryptol_test::*;
 
-    #[crux_test]
+    #[crux::test]
     fn block_data_order_slice_equiv() {
         let state = <[u32; 8]>::symbolic("state");
         let mut state_wrap = [Wrapping(0); 8];
@@ -550,11 +550,11 @@ mod rustcrypto_rustcrypto_test {
 #[cfg(crux)]
 mod rustcrypto_cryptol_test {
     extern crate crucible;
-    extern crate crucible_spec_macro;
+    extern crate crucible_proc_macros;
     use crucible::*;
     use crucible::cryptol::munge;
     use crucible::method_spec::*;
-    use crucible_spec_macro::crux_spec_for;
+    use crucible_proc_macros::crux_spec_for;
     use super::*;
 
     mod cry {
@@ -724,7 +724,7 @@ mod rustcrypto_cryptol_test {
         }
     }
 
-    #[crux_test]
+    #[crux::test]
     fn block_data_order_slice_words_equiv() {
         message_schedule_words_equiv_spec().enable();
         compress_words_equiv_spec().enable();
@@ -750,11 +750,11 @@ mod rustcrypto_cryptol_test {
 #[cfg(crux)]
 mod rustcrypto_hs_test {
     extern crate crucible;
-    extern crate crucible_spec_macro;
+    extern crate crucible_proc_macros;
     use crucible::*;
     use crucible::cryptol::munge;
     use crucible::method_spec::*;
-    use crucible_spec_macro::crux_spec_for;
+    use crucible_proc_macros::crux_spec_for;
     use super::*;
     use hacspec_sha256 as hs;
     use hacspec_lib::prelude::*;
