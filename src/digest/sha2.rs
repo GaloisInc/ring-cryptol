@@ -564,18 +564,16 @@ mod rustcrypto_cryptol_test {
 
             pub fn message_schedule(m: [u32; 16]) -> [u32; 64]
                 = "messageSchedule_Common";
-            pub fn message_schedule_one(a: u32, b: u32, c: u32, d: u32) -> u32
-                = r#" \a b c (d : [32]) -> d + sigma_0 c + b + sigma_1 a "#;
-
+            pub fn process_block(h: [u32; 8], m: [u32; 16]) -> [u32; 8]
+                = "processBlock_Common";
             pub fn compress(h: [u32; 8], w: [u32; 64]) -> [u32; 8]
                 = "compress_Common";
             pub fn compress_t1(e: u32, f: u32, g: u32, h: u32, k_t: u32, w_t: u32) -> u32
-                = r#" \e f g h k_t (w_t : [32]) -> h + SIGMA_1 e + Ch e f g + k_t + w_t "#;
+                = r#" \e f g h k_t (w_t : [32]) -> h + S1 e + Ch e f g + k_t + w_t "#;
             pub fn compress_t2(a: u32, b: u32, c: u32) -> u32
-                = r#" \a b (c : [32]) -> SIGMA_0 a + Maj a b c "#;
-
-            pub fn process_block(h: [u32; 8], m: [u32; 16]) -> [u32; 8]
-                = "processBlock_Common";
+                = r#" \a b (c : [32]) -> S0 a + Maj a b c "#;
+            pub fn message_schedule_one(a: u32, b: u32, c: u32, d: u32) -> u32
+                = r#" \a b c (d : [32]) -> d + s0 c + b + s1 a "#;
         }
     }
 
