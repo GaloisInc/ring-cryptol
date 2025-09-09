@@ -1,0 +1,12 @@
+diff --git a/lib/src/bigint_integers.rs b/lib/src/bigint_integers.rs
+index cf281e04b8..7c32d540cc 100644
+--- a/lib/src/bigint_integers.rs
++++ b/lib/src/bigint_integers.rs
+@@ -45,7 +45,6 @@ impl Integer for BigInt {
+     #[inline]
+     #[cfg_attr(feature = "use_attributes", in_hacspec)]
+     fn set_bit(self, b: Self, i: usize) -> Self {
+-        debug_assert!(b.clone().equal(Self::ONE()) || b.clone().equal(Self::ZERO()));
+         let tmp1 = Self::from_literal(!(1 << i));
+         let tmp2 = b << i;
+         (self & tmp1) | tmp2
