@@ -1,0 +1,54 @@
+stages:
+  - test
+  - verify
+
+image: "rust:1.87"
+
+variables:
+  # move cargo data into the project directory so it can be cached
+  CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
+  GIT_SUBMODULE_STRATEGY: normal
+default:
+  # cancel the job if a newer pipeline starts for the same MR or branch
+  interruptible: true
+
+cargo-test:
+  stage: test
+  script:
+    - cd deps/hacspec
+    - git apply ../hacspec.patch
+    - cd ../..
+    - rustc --version
+    - cargo test
+  tags:
+    - linux
+
+crux-test:
+  stage: verify
+  tags:
+    - linux
+  script:
+    # Patch the hacspecs repo
+    - cd deps/hacspec
+    - git apply ../hacspec.patch
+    - git status
+    - cd ../..
+    # Set up correct paths
+    - export PATH="./saw-suite/bin":${PATH}
+    - echo $PATH
+    - export SAW_RUST_LIBRARY_PATH="${PWD}/saw-suite/rlibs"
+    - echo $SAW_RUST_LIBRARY_PATH
+    - export CRUX_RUST_LIBRARY_PATH="${PWD}/saw-suite/rlibs"
+    - echo $CRUX_RUST_LIBRARY_PATH
+    - export CRYPTOLPATH="${PWD}/deps/cryptol-specs"
+    - echo $CRYPTOLPATH
+    # install jq
+    - apt-get update && apt-get install -y jq
+    # Download saw-suite to ./saw-suite
+    - ./.gitlab/download_saw_suite.sh
+    # Check tool versions
+    - mir-json --version
+    - crux-mir --version
+    - cargo --version
+    # Run compositional verification with crux-mir
+    - CRUX_MIR=crux-mir-comp cargo crux-test --lib -- -s z3 -m

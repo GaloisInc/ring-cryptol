@@ -1,0 +1,6 @@
+[submodule "deps/hacspec"]
+	path = deps/hacspec
+	url = https://github.com/hacspec/hacspec.git
+[submodule "deps/cryptol-specs"]
+	path = deps/cryptol-specs
+	url = https://github.com/GaloisInc/cryptol-specs.git
