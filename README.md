@@ -1,26 +1,34 @@
 # Quickstart
 
-* Clone [hacspec](https://github.com/hacspec/hacspec/) in the parent folder:
+* Initialize the submodules
   ```
-  cd ..
-  git clone git@github.com:hacspec/hacspec.git
-  cd ring-cryptol
+  git submodule init
+  git submodule update
+  ```
+* Patch the `hacspec` repo:
+  ```bash
+  cd deps/hacspec
+  git apply ../hacspec.patch
+  git status
+  # should see that `lib/src/bigint_integers.rs` is modified
+  cd ../..
   ```
 * Download and install the latest `mir-json`, `crux-mir` and `saw` (binary distribution is probably the easiest)
 * Make sure your `CRUX_RUST_LIBRARY_PATH` is set
-* Clone `cryptol-specs` in the parent directory:
-  ```
-  cd ..
-  git clone git@github.com:GaloisInc/cryptol-specs.git
-  cd ring-cryptol
-  ```
 * Set your `CRYPTOLPATH` such that it points to `cryptol-specs` repo
   ```
-  export CRYPTOLPATH=../cryptol-specs
+  export CRYPTOLPATH=$PWD/deps/cryptol-specs
   ```
 * Run the proofs:
   ```
-  CRUX_MIR=crux-mir-comp cargo crux-test --lib -- -s z3 -m
+  CRUX_MIR=crux-mir-comp cargo crux-test --lib -- -s z3 -m message_schedule_one_equiv
+  ```
+* Run coverage
+  ```
+  export COV_REP=../crucible/crux-mir/report-coverage/Cargo.toml
+  CRUX_MIR=crux-mir-comp cargo crux-test --lib -- -s z3 -m --branch-coverage --path-sat --output-directory test-coverage message_schedule_one_equiv
+  CRUX_MIR=crux-mir-comp cargo crux-test --lib -- -s z3 -m --branch-coverage --path-sat --output-directory test-coverage --profile-crucible --profile-solver --skip-report
+  find ./test-coverage -name 'report_data.js' | xargs cargo run --manifest-path $COV_REP --
   ```
 
 THE SOFTWARE IS PROVIDED "AS IS" AND BRIAN SMITH AND THE AUTHORS DISCLAIM
