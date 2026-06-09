@@ -15,13 +15,9 @@
   ```
 * Download and install the latest `mir-json`, `crux-mir` and `saw` (binary distribution is probably the easiest)
 * Make sure your `CRUX_RUST_LIBRARY_PATH` is set
-* Set your `CRYPTOLPATH` such that it points to `cryptol-specs` repo
-  ```
-  export CRYPTOLPATH=$PWD/deps/cryptol-specs
-  ```
 * Run the proofs:
   ```
-  CRUX_MIR=crux-mir-comp cargo crux-test --lib -- -s z3 -m message_schedule_one_equiv
+  CRYPTOLPATH=$PWD/deps/cryptol-specs CRUX_MIR=crux-mir-comp cargo crux-test --lib -- -s z3 -m message_schedule_one_equiv
   ```
 * Run coverage
   ```
