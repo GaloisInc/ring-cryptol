@@ -62,7 +62,7 @@ jobs:
       - name: Download saw-suite
         env:
           GITHUB_ACCESS_TOKEN: ${{ secrets.SAW_SUITE_TOKEN }}
-        run: ./.gitlab/download_saw_suite.sh
+        run: ./.github/download_saw_suite.sh
 
       - name: Run crux-mir compositional verification
         run: |
