@@ -4,26 +4,19 @@ on:
   pull_request:
   push:
 
-# Mirror of GitLab's `default: interruptible: true`: cancel superseded runs
-# for the same branch / PR.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # Move cargo data into the project directory so it can be cached, matching
-  # the GitLab `CARGO_HOME` variable.
   CARGO_HOME: ${{ github.workspace }}/.cargo
 
 jobs:
-  # GitLab `cargo-test` job (stage: test).
   cargo-test:
     runs-on: ubuntu-latest
-    # GitLab ran everything in the `rust:1.87` image.
     container:
       image: rust:1.87
     steps:
-      # GitLab `GIT_SUBMODULE_STRATEGY: normal` -> check out submodules.
       - uses: actions/checkout@v4
         with:
           submodules: true
@@ -43,7 +36,6 @@ jobs:
       - run: rustc --version
       - run: cargo test
 
-  # GitLab `crux-test` job (stage: verify) -> runs after cargo-test.
   crux-test:
     runs-on: ubuntu-latest
     needs: cargo-test
@@ -68,10 +60,6 @@ jobs:
         run: apt-get update && apt-get install -y jq
 
       - name: Download saw-suite
-        # GitLab used a CI/CD variable named GITHUB_ACCESS_TOKEN. GitHub forbids
-        # secret names that start with `GITHUB_`, so store the PAT (needs read
-        # access to GaloisInc/saw-suite Actions artifacts) under a different
-        # name and map it here.
         env:
           GITHUB_ACCESS_TOKEN: ${{ secrets.SAW_SUITE_TOKEN }}
         run: ./.gitlab/download_saw_suite.sh
