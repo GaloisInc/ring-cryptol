@@ -45,7 +45,7 @@ crux-test:
     # install jq
     - apt-get update && apt-get install -y jq
     # Download saw-suite to ./saw-suite
-    - ./.gitlab/download_saw_suite.sh
+    - ./.github/download_saw_suite.sh
     # Check tool versions
     - mir-json --version
     - crux-mir --version
