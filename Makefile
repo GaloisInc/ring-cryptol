@@ -4,7 +4,7 @@ COV_REP=${PWD}/../crucible/crux-mir/report-coverage/Cargo.toml
 # Adding `--branch-coverage` triggers an error, see
 # https://github.com/GaloisInc/crucible/issues/1534#issuecomment-4718780378
 # for details
-COVERAGE=--path-sat --output-directory test-coverage --branch-coverage
+COVERAGE=--path-sat --output-directory test-coverage
 
 clean:
 	cargo clean
