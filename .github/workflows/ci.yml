@@ -52,9 +52,7 @@ jobs:
 
       - name: Patch hacspec
         run: |
-          cd deps/hacspec
-          git apply ../hacspec.patch
-          git status
+          make patch
 
       - name: Install jq
         run: apt-get update && apt-get install -y jq
@@ -74,4 +72,6 @@ jobs:
           mir-json --version
           crux-mir --version
           cargo --version
-          CRUX_MIR=crux-mir-comp cargo crux-test --lib -- -s z3 -m
+          make clean
+          make verify-cryptolspecs
+          make verify-hacspecs
