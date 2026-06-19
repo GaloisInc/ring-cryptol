@@ -51,4 +51,5 @@ crux-test:
     - crux-mir --version
     - cargo --version
     # Run compositional verification with crux-mir
-    - CRUX_MIR=crux-mir-comp cargo crux-test --lib -- -s z3 -m
+    - make verify-cryptolspecs
+    - make verify-hacspecs
