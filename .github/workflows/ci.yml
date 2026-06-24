@@ -54,7 +54,7 @@ jobs:
 
       - name: Run crux-mir compositional verification
         run: |
-          . "$HOME/.cargo/env"
+          . /root/.cargo/env
           mir-json --version
           crux-mir --version
           cargo --version
