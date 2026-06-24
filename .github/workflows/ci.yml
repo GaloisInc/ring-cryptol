@@ -54,9 +54,7 @@ jobs:
 
       - name: Run crux-mir compositional verification
         run: |
-          echo "SAW_RUST_LIBRARY_PATH=$SAW_RUST_LIBRARY_PATH"
-          echo "CRUX_RUST_LIBRARY_PATH=$CRUX_RUST_LIBRARY_PATH"
-          echo "CRYPTOLPATH=$CRYPTOLPATH"
+          . "$HOME/.cargo/env"
           mir-json --version
           crux-mir --version
           cargo --version
