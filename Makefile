@@ -6,6 +6,8 @@ COV_REP=${PWD}/../crucible/crux-mir/report-coverage/Cargo.toml
 # for details
 COVERAGE=--path-sat --output-directory test-coverage
 
+.PHONY: verify-cryptolspecs verify-hacspecs
+
 clean:
 	cargo clean
 	rm -rf test-coverage
